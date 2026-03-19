@@ -1,0 +1,15 @@
+apiVersion: v2
+name: eks-secure-enterprise-api-builder
+description: Helm chart for the EKS Secure Enterprise API Builder template
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - eks
+  - aws
+  - api
+  - security
+  - coder
+home: https://github.com/RocketCityDefenseSolutions/DevTools
+maintainers:
+  - name: Rocket City Defense Solutions LLC

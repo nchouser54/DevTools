@@ -1,0 +1,53 @@
+replicaCount: 2
+
+image:
+  repository: replace-me/eks-secure-api-builder
+  tag: "latest"
+  pullPolicy: Always
+
+aws:
+  region: us-gov-west-1
+  irsaRoleArn: "arn:aws-us-gov:iam::ACCOUNT_ID:role/secure-api-irsa"
+
+app:
+  namespace: secure-api
+  port: 8080
+  logLevel: info
+
+serviceAccount:
+  create: true
+  name: secure-api
+
+resources:
+  requests:
+    cpu: "250m"
+    memory: "256Mi"
+  limits:
+    cpu: "1000m"
+    memory: "512Mi"
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
+
+pdb:
+  enabled: true
+  minAvailable: 1
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: true
+  className: alb
+  host: ""
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internal
+    alb.ingress.kubernetes.io/target-type: ip
+
+networkPolicy:
+  enabled: true

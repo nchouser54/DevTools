@@ -1,0 +1,39 @@
+# Default values for eks-bedrock-chatbot.
+# Override per environment via --set or a values overlay file.
+
+replicaCount: 1
+
+image:
+  repository: replace-me/eks-bedrock-chatbot
+  tag: "latest"
+  pullPolicy: Always
+
+aws:
+  region: us-gov-west-1
+  bedrockModelId: replace-with-govcloud-sonnet-4.5-model-id
+  irsaRoleArn: "arn:aws:iam::ACCOUNT_ID:role/eks-bedrock-chatbot-role"
+
+app:
+  namespace: chatbot
+
+resources:
+  requests:
+    cpu: "250m"
+    memory: "256Mi"
+  limits:
+    cpu: "1000m"
+    memory: "512Mi"
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+networkPolicy:
+  enabled: true

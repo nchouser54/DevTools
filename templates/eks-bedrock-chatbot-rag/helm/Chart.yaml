@@ -1,0 +1,15 @@
+apiVersion: v2
+name: eks-bedrock-chatbot-rag
+description: Helm chart for the EKS Bedrock Chatbot RAG template
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - bedrock
+  - chatbot
+  - eks
+  - rag
+  - knowledge-bases
+  - opensearch
+maintainers:
+  - name: Rocket City Defense Solutions LLC

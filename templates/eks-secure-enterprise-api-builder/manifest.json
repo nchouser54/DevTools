@@ -1,0 +1,50 @@
+{
+  "name": "EKS Secure Enterprise API Builder",
+  "slug": "eks-secure-enterprise-api-builder",
+  "description": "Production-oriented Coder workspace template for building and deploying secure Python APIs to Amazon EKS with IRSA, Helm, NetworkPolicy, HPA, and PodDisruptionBudget defaults.",
+  "owner": "Rocket City Defense Solutions LLC",
+  "version": "0.1.0",
+  "runtime": {
+    "language": "python",
+    "pythonVersion": "3.12",
+    "baseImage": "python:3.12-slim-bookworm"
+  },
+  "platform": {
+    "target": "amazon-eks",
+    "irsaRequired": true,
+    "helmChart": "helm/",
+    "k8sManifests": "k8s/"
+  },
+  "aws": {
+    "services": [
+      "eks",
+      "iam",
+      "cloudwatch",
+      "ecr"
+    ],
+    "region": "${AWS_REGION}"
+  },
+  "security": {
+    "networkPolicies": true,
+    "podDisruptionBudget": true,
+    "hpa": true,
+    "podSecurityStandards": "restricted"
+  },
+  "mcp": {
+    "mode": "preconfigured-examples",
+    "configPath": "mcp/servers.example.json",
+    "notes": "Example-only MCP definitions. Operators must review and adapt to approved internal tools and policies."
+  },
+  "tags": [
+    "coder",
+    "eks",
+    "aws",
+    "irsa",
+    "helm",
+    "workspace",
+    "mcp",
+    "security",
+    "api",
+    "platform"
+  ]
+}

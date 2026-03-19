@@ -1,0 +1,61 @@
+{
+  "servers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "${MCP_ALLOWED_ROOT}"
+      ],
+      "enabled": true,
+      "notes": "Restrict filesystem access to approved workspace roots."
+    },
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${MCP_GITHUB_TOKEN}",
+        "GITHUB_SERVER_URL": "${MCP_GITHUB_SERVER_URL}",
+        "GITHUB_REPOSITORY": "${MCP_GITHUB_REPOSITORY}",
+        "GITHUB_BRANCH": "${MCP_GITHUB_BRANCH}"
+      },
+      "enabled": false,
+      "notes": "Keep disabled until a reviewed token and policy are in place."
+    },
+    "jira": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-atlassian"
+      ],
+      "env": {
+        "JIRA_URL": "${MCP_JIRA_SERVER_URL}",
+        "JIRA_SERVER_URL": "${MCP_JIRA_SERVER_URL}",
+        "JIRA_PROJECT_KEY": "${MCP_JIRA_PROJECT_KEY}",
+        "JIRA_USERNAME": "${MCP_JIRA_USER_EMAIL}",
+        "JIRA_API_TOKEN": "${MCP_JIRA_TOKEN}"
+      },
+      "enabled": false,
+      "notes": "Atlassian MCP server for Jira issue/project workflows."
+    },
+    "confluence": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-atlassian"
+      ],
+      "env": {
+        "CONFLUENCE_URL": "${MCP_CONFLUENCE_SERVER_URL}",
+        "CONFLUENCE_SERVER_URL": "${MCP_CONFLUENCE_SERVER_URL}",
+        "CONFLUENCE_SPACE_KEY": "${MCP_CONFLUENCE_SPACE_KEY}",
+        "CONFLUENCE_USERNAME": "${MCP_CONFLUENCE_USER_EMAIL}",
+        "CONFLUENCE_API_TOKEN": "${MCP_CONFLUENCE_TOKEN}"
+      },
+      "enabled": false,
+      "notes": "Atlassian MCP server for Confluence space/page workflows."
+    }
+  }
+}

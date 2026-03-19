@@ -1,0 +1,44 @@
+FROM python:3.12-slim-bookworm
+
+ARG USERNAME=appuser
+ARG UID=1001
+ARG TARGETARCH=amd64
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        curl \
+        git \
+        jq \
+        tmux \
+        openssh-client \
+        unzip \
+        ca-certificates \
+        nodejs \
+        npm \
+    && rm -rf /var/lib/apt/lists/*
+
+# AWS CLI v2
+RUN if [ "${TARGETARCH}" = "arm64" ]; then \
+      AWSCLI_URL="https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip"; \
+    else \
+      AWSCLI_URL="https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"; \
+    fi \
+    && curl -fsSL "${AWSCLI_URL}" -o /tmp/awscli.zip \
+    && unzip -q /tmp/awscli.zip -d /tmp \
+    && /tmp/aws/install \
+    && rm -rf /tmp/aws /tmp/awscli.zip
+
+# kubectl
+RUN curl -fsSL "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/${TARGETARCH}/kubectl" \
+        -o /usr/local/bin/kubectl \
+    && chmod +x /usr/local/bin/kubectl
+
+RUN python -m pip install --no-cache-dir --upgrade pip
+
+RUN useradd -u ${UID} -m ${USERNAME}
+
+COPY bootstrap.sh /usr/local/bin/devtools-bootstrap
+RUN chmod +x /usr/local/bin/devtools-bootstrap && /usr/local/bin/devtools-bootstrap
+
+USER ${USERNAME}
+WORKDIR /app

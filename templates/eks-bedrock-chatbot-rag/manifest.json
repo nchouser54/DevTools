@@ -1,0 +1,49 @@
+{
+  "name": "EKS Bedrock Chatbot RAG",
+  "slug": "eks-bedrock-chatbot-rag",
+  "description": "Bedrock-powered chatbot on Amazon EKS with Retrieval-Augmented Generation (RAG) via Amazon Bedrock Knowledge Bases. Includes ingestion pipeline workers, retrieval routing, and EKS-scaled HPA for document processing.",
+  "owner": "Rocket City Defense Solutions LLC",
+  "version": "0.1.0",
+  "runtime": {
+    "language": "python",
+    "pythonVersion": "3.12",
+    "baseImage": "python:3.12-slim-bookworm"
+  },
+  "platform": {
+    "target": "amazon-eks",
+    "irsaRequired": true,
+    "helmChart": "helm/",
+    "k8sManifests": "k8s/"
+  },
+  "aws": {
+    "services": ["bedrock", "bedrock-agent", "s3", "opensearchserverless", "iam", "eks"],
+    "bedrockModel": "replace-with-govcloud-sonnet-4.5-model-id",
+    "embeddingModel": "amazon.titan-embed-text-v2:0",
+    "converse": true,
+    "knowledgeBases": true,
+    "region": "${AWS_REGION}"
+  },
+  "connectors": {
+    "github": {"enabled": false},
+    "jira": {"enabled": false},
+    "confluence": {"enabled": false}
+  },
+  "mcp": {
+    "mode": "preconfigured-examples",
+    "configPath": "mcp/servers.example.json",
+    "notes": "Example-only. Operators must configure S3 bucket, AOSS collection ARN, and Knowledge Base ID."
+  },
+  "tags": [
+    "coder",
+    "python",
+    "aws",
+    "bedrock",
+    "eks",
+    "chatbot",
+    "rag",
+    "knowledge-bases",
+    "opensearch",
+    "irsa",
+    "mcp"
+  ]
+}

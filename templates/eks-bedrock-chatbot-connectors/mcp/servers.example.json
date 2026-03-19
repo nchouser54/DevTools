@@ -1,0 +1,51 @@
+{
+  "servers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "${MCP_ALLOWED_ROOT}"],
+      "enabled": true,
+      "notes": "Always enabled. Restrict root path to /app or approved workspace path."
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "GITHUB_SERVER_URL": "${GITHUB_SERVER_URL}",
+        "GITHUB_REPOSITORY": "${GITHUB_REPOSITORY}",
+        "GITHUB_BRANCH": "${GITHUB_BRANCH}"
+      },
+      "enabled": false,
+      "featureFlag": "MCP_ENABLE_GITHUB",
+      "notes": "Set MCP_ENABLE_GITHUB=true and supply GITHUB_PERSONAL_ACCESS_TOKEN to activate. Minimum scopes: repo, read:org."
+    },
+    "jira": {
+      "command": "npx",
+      "args": ["-y", "mcp-atlassian"],
+      "env": {
+        "JIRA_URL": "${JIRA_SERVER_URL}",
+        "JIRA_SERVER_URL": "${JIRA_SERVER_URL}",
+        "JIRA_PROJECT_KEY": "${JIRA_PROJECT_KEY}",
+        "JIRA_USERNAME": "${JIRA_USER_EMAIL}",
+        "JIRA_API_TOKEN": "${JIRA_API_TOKEN}"
+      },
+      "enabled": false,
+      "featureFlag": "MCP_ENABLE_JIRA",
+      "notes": "Uses mcp-atlassian (npm: mcp-atlassian). Set MCP_ENABLE_JIRA=true and supply Jira credentials to activate."
+    },
+    "confluence": {
+      "command": "npx",
+      "args": ["-y", "mcp-atlassian"],
+      "env": {
+        "CONFLUENCE_URL": "${CONFLUENCE_SERVER_URL}",
+        "CONFLUENCE_SERVER_URL": "${CONFLUENCE_SERVER_URL}",
+        "CONFLUENCE_SPACE_KEY": "${CONFLUENCE_SPACE_KEY}",
+        "CONFLUENCE_USERNAME": "${CONFLUENCE_USER_EMAIL}",
+        "CONFLUENCE_API_TOKEN": "${CONFLUENCE_API_TOKEN}"
+      },
+      "enabled": false,
+      "featureFlag": "MCP_ENABLE_CONFLUENCE",
+      "notes": "Uses mcp-atlassian (npm: mcp-atlassian). Set MCP_ENABLE_CONFLUENCE=true and supply Confluence credentials to activate."
+    }
+  }
+}

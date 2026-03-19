@@ -1,0 +1,29 @@
+{
+  "name": "Python AI Workspace",
+  "slug": "python-ai-workspace",
+  "description": "Reference Coder workspace template for Python AI workflows with user-selectable workspace size, Git repo/branch bootstrap, and auto-rendered MCP setup for GitHub, Jira, and Confluence.",
+  "owner": "Rocket City Defense Solutions LLC",
+  "version": "0.1.0",
+  "runtime": {
+    "language": "python",
+    "pythonVersion": "3.12",
+    "baseImage": "mcr.microsoft.com/devcontainers/python:1-3.12-bookworm"
+  },
+  "mcp": {
+    "mode": "preconfigured-examples",
+    "configPath": "mcp/servers.example.json",
+    "notes": "Example-only MCP definitions. Operators must review and adapt to their environment."
+  },
+  "tags": [
+    "coder",
+    "python",
+    "ai",
+    "mcp",
+    "workspace",
+    "git",
+    "bootstrap",
+    "github",
+    "jira",
+    "confluence"
+  ]
+}

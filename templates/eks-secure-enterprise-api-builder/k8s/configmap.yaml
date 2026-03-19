@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: secure-api-config
+  namespace: secure-api
+data:
+  AWS_REGION: us-gov-west-1
+  API_LOG_LEVEL: info

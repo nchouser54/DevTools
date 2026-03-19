@@ -1,0 +1,39 @@
+{
+  "name": "EKS Bedrock Chatbot Starter",
+  "slug": "eks-bedrock-chatbot-starter",
+  "description": "Baseline Coder workspace template for building an AWS Bedrock-powered chatbot on Amazon EKS. Wires IRSA for pod-level IAM, stubs Bedrock Converse API, and includes starter Kubernetes manifests.",
+  "owner": "Rocket City Defense Solutions LLC",
+  "version": "0.1.0",
+  "runtime": {
+    "language": "python",
+    "pythonVersion": "3.12",
+    "baseImage": "python:3.12-slim-bookworm"
+  },
+  "platform": {
+    "target": "amazon-eks",
+    "irsaRequired": true,
+    "helmChart": "helm/",
+    "k8sManifests": "k8s/"
+  },
+  "aws": {
+    "services": ["bedrock", "iam", "eks"],
+    "bedrockModel": "replace-with-govcloud-sonnet-4.5-model-id",
+    "converse": true,
+    "region": "${AWS_REGION}"
+  },
+  "mcp": {
+    "mode": "preconfigured-examples",
+    "configPath": "mcp/servers.example.json",
+    "notes": "Example-only MCP definitions. Operators must review and adapt to their environment."
+  },
+  "tags": [
+    "coder",
+    "python",
+    "aws",
+    "bedrock",
+    "eks",
+    "chatbot",
+    "irsa",
+    "mcp"
+  ]
+}

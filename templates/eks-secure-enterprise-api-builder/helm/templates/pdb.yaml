@@ -1,0 +1,14 @@
+{{- if .Values.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "eks-secure-enterprise-api-builder.fullname" . }}
+  namespace: {{ .Values.app.namespace }}
+  labels:
+    {{- include "eks-secure-enterprise-api-builder.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "eks-secure-enterprise-api-builder.selectorLabels" . | nindent 6 }}
+{{- end }}

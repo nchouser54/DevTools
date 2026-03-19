@@ -1,0 +1,31 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "BedrockConverseAccess",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream",
+        "bedrock:Converse",
+        "bedrock:ConverseStream"
+      ],
+      "Resource": [
+        "arn:aws-us-gov:bedrock:us-gov-west-1::foundation-model/*"
+      ]
+    },
+    {
+      "Sid": "SecretsManagerConnectorTokens",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+      ],
+      "Resource": [
+        "arn:aws-us-gov:secretsmanager:us-gov-west-1:ACCOUNT_ID:secret:chatbot/github-pat-*",
+        "arn:aws-us-gov:secretsmanager:us-gov-west-1:ACCOUNT_ID:secret:chatbot/jira-pat-*",
+        "arn:aws-us-gov:secretsmanager:us-gov-west-1:ACCOUNT_ID:secret:chatbot/confluence-pat-*"
+      ]
+    }
+  ]
+}

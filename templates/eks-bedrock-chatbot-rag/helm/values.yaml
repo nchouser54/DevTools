@@ -1,0 +1,66 @@
+replicaCount: 1
+
+image:
+  repository: replace-me/eks-bedrock-chatbot-rag
+  tag: "latest"
+  pullPolicy: Always
+
+aws:
+  region: us-gov-west-1
+  bedrockModelId: replace-with-govcloud-sonnet-4.5-model-id
+  bedrockEmbeddingModelId: amazon.titan-embed-text-v2:0
+  irsaRoleArn: "arn:aws:iam::ACCOUNT_ID:role/eks-bedrock-chatbot-rag-role"
+
+bedrock:
+  knowledgeBaseId: "replace-me"
+  knowledgeBaseDataSourceId: "replace-me"
+
+rag:
+  maxResults: 5
+
+s3:
+  documentBucket: "replace-me"
+  documentPrefix: "docs/"
+
+app:
+  namespace: chatbot
+
+connectors:
+  github:
+    enabled: false
+    serverUrl: https://github.com
+    repository: owner/repo
+    branch: main
+  jira:
+    enabled: false
+    serverUrl: https://your-org.atlassian.net
+    projectKey: TEAM
+  confluence:
+    enabled: false
+    serverUrl: https://your-org.atlassian.net/wiki
+    spaceKey: ENG
+
+resources:
+  requests:
+    cpu: "250m"
+    memory: "256Mi"
+  limits:
+    cpu: "1000m"
+    memory: "512Mi"
+
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 8
+  targetCPUUtilizationPercentage: 70
+
+ingestion:
+  schedule: "0 * * * *"
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+networkPolicy:
+  enabled: true

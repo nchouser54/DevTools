@@ -1,0 +1,15 @@
+apiVersion: v2
+name: eks-bedrock-chatbot
+description: Helm chart for the EKS Bedrock Chatbot Starter template
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - bedrock
+  - chatbot
+  - eks
+  - aws
+  - ai
+home: https://github.com/RocketCityDefenseSolutions/DevTools
+maintainers:
+  - name: Rocket City Defense Solutions LLC

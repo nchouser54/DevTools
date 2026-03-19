@@ -1,0 +1,93 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "BedrockConverseAccess",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream",
+        "bedrock:Converse",
+        "bedrock:ConverseStream"
+      ],
+      "Resource": [
+        "arn:aws-us-gov:bedrock:us-gov-west-1::foundation-model/*"
+      ]
+    },
+    {
+      "Sid": "BedrockKnowledgeBaseRetrieve",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:Retrieve",
+        "bedrock:RetrieveAndGenerate"
+      ],
+      "Resource": [
+        "arn:aws-us-gov:bedrock:us-gov-west-1:ACCOUNT_ID:knowledge-base/KB_ID"
+      ]
+    },
+    {
+      "Sid": "BedrockIngestionJobManagement",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:StartIngestionJob",
+        "bedrock:GetIngestionJob",
+        "bedrock:ListIngestionJobs"
+      ],
+      "Resource": [
+        "arn:aws-us-gov:bedrock:us-gov-west-1:ACCOUNT_ID:knowledge-base/KB_ID"
+      ]
+    },
+    {
+      "Sid": "S3DocumentBucketAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws-us-gov:s3:::DOCUMENT_BUCKET",
+        "arn:aws-us-gov:s3:::DOCUMENT_BUCKET/*"
+      ]
+    },
+    {
+      "Sid": "CognitoTokenVerification",
+      "Effect": "Allow",
+      "Action": [
+        "cognito-idp:GetUser"
+      ],
+      "Resource": [
+        "arn:aws-us-gov:cognito-idp:us-gov-west-1:ACCOUNT_ID:userpool/USER_POOL_ID"
+      ]
+    },
+    {
+      "Sid": "SecretsManagerFullChatbotSecrets",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+      ],
+      "Resource": [
+        "arn:aws-us-gov:secretsmanager:us-gov-west-1:ACCOUNT_ID:secret:chatbot/*"
+      ]
+    },
+    {
+      "Sid": "XRayTracing",
+      "Effect": "Allow",
+      "Action": [
+        "xray:PutTraceSegments",
+        "xray:PutTelemetryRecords",
+        "xray:GetSamplingRules",
+        "xray:GetSamplingTargets"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudWatchMetrics",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:PutMetricData"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

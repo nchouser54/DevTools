@@ -1,0 +1,10 @@
+# Namespace with Pod Security Standards enforced at "restricted" level.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chatbot
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest

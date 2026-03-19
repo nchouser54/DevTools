@@ -1,0 +1,17 @@
+apiVersion: v2
+name: eks-bedrock-chatbot-enterprise
+description: Helm chart for the EKS Bedrock Chatbot Secure Enterprise template
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - bedrock
+  - chatbot
+  - eks
+  - enterprise
+  - cognito
+  - eso
+  - otel
+  - security
+maintainers:
+  - name: Rocket City Defense Solutions LLC

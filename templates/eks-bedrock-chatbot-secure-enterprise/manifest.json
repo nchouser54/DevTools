@@ -1,0 +1,65 @@
+{
+  "name": "EKS Bedrock Chatbot Secure Enterprise",
+  "slug": "eks-bedrock-chatbot-secure-enterprise",
+  "description": "Production-hardened Bedrock chatbot on Amazon EKS with OIDC/SSO via Amazon Cognito, AWS Secrets Manager + External Secrets Operator, Kubernetes NetworkPolicies, PodDisruptionBudgets, audit logging, and OpenTelemetry observability.",
+  "owner": "Rocket City Defense Solutions LLC",
+  "version": "0.1.0",
+  "runtime": {
+    "language": "python",
+    "pythonVersion": "3.12",
+    "baseImage": "python:3.12-slim-bookworm"
+  },
+  "platform": {
+    "target": "amazon-eks",
+    "irsaRequired": true,
+    "helmChart": "helm/",
+    "k8sManifests": "k8s/"
+  },
+  "aws": {
+    "services": [
+      "bedrock", "bedrock-agent", "cognito", "secretsmanager", "cloudwatch",
+      "s3", "opensearchserverless", "iam", "eks", "xray"
+    ],
+    "bedrockModel": "replace-with-govcloud-sonnet-4.5-model-id",
+    "embeddingModel": "amazon.titan-embed-text-v2:0",
+    "converse": true,
+    "knowledgeBases": true,
+    "region": "${AWS_REGION}"
+  },
+  "security": {
+    "sso": "amazon-cognito",
+    "secretsProvider": "aws-secrets-manager",
+    "externalSecretsOperator": true,
+    "networkPolicies": true,
+    "podSecurityStandards": "restricted",
+    "auditLogging": true,
+    "otelTracing": true
+  },
+  "connectors": {
+    "github": {"enabled": false},
+    "jira": {"enabled": false},
+    "confluence": {"enabled": false}
+  },
+  "mcp": {
+    "mode": "preconfigured-examples",
+    "configPath": "mcp/servers.example.json",
+    "notes": "All secrets managed via External Secrets Operator from AWS Secrets Manager."
+  },
+  "tags": [
+    "coder",
+    "python",
+    "aws",
+    "bedrock",
+    "eks",
+    "chatbot",
+    "irsa",
+    "mcp",
+    "cognito",
+    "sso",
+    "secrets-manager",
+    "eso",
+    "otel",
+    "enterprise",
+    "security"
+  ]
+}

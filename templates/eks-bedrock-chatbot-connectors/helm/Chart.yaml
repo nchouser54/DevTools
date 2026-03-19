@@ -1,0 +1,16 @@
+apiVersion: v2
+name: eks-bedrock-chatbot-connectors
+description: Helm chart for the EKS Bedrock Chatbot Connectors template
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - bedrock
+  - chatbot
+  - eks
+  - aws
+  - github
+  - jira
+  - confluence
+maintainers:
+  - name: Rocket City Defense Solutions LLC

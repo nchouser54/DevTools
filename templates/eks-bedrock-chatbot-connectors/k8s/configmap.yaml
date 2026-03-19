@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bedrock-chatbot-config
+  namespace: chatbot
+data:
+  aws_region: "us-gov-west-1"
+  bedrock_model_id: "replace-with-govcloud-sonnet-4.5-model-id"
+  mcp_enable_github: "false"
+  mcp_enable_jira: "false"
+  mcp_enable_confluence: "false"
+  allow_connector_writes: "false"
+  mcp_enable_filesystem: "true"
+  mcp_allowed_root: "/app"
+  github_server_url: "https://github.com"
+  github_repository: "owner/repo"
+  github_branch: "main"
+  jira_server_url: "https://your-org.atlassian.net"
+  jira_project_key: "TEAM"
+  confluence_server_url: "https://your-org.atlassian.net/wiki"
+  confluence_space_key: "ENG"

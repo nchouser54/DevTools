@@ -1,0 +1,51 @@
+{
+  "servers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "${MCP_ALLOWED_ROOT}"],
+      "enabled": true,
+      "notes": "Restrict to /app. ESO injects all secrets as env vars."
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}",
+        "GITHUB_SERVER_URL": "${GITHUB_SERVER_URL}",
+        "GITHUB_REPOSITORY": "${GITHUB_REPOSITORY}",
+        "GITHUB_BRANCH": "${GITHUB_BRANCH}"
+      },
+      "enabled": false,
+      "featureFlag": "MCP_ENABLE_GITHUB",
+      "notes": "Token sourced from AWS Secrets Manager via ESO; set MCP_ENABLE_GITHUB=true in ConfigMap."
+    },
+    "jira": {
+      "command": "npx",
+      "args": ["-y", "mcp-atlassian"],
+      "env": {
+        "JIRA_URL": "${JIRA_SERVER_URL}",
+        "JIRA_SERVER_URL": "${JIRA_SERVER_URL}",
+        "JIRA_PROJECT_KEY": "${JIRA_PROJECT_KEY}",
+        "JIRA_USERNAME": "${JIRA_USER_EMAIL}",
+        "JIRA_API_TOKEN": "${JIRA_API_TOKEN}"
+      },
+      "enabled": false,
+      "featureFlag": "MCP_ENABLE_JIRA",
+      "notes": "Uses mcp-atlassian (npm: mcp-atlassian). Credentials sourced from AWS Secrets Manager via ESO."
+    },
+    "confluence": {
+      "command": "npx",
+      "args": ["-y", "mcp-atlassian"],
+      "env": {
+        "CONFLUENCE_URL": "${CONFLUENCE_SERVER_URL}",
+        "CONFLUENCE_SERVER_URL": "${CONFLUENCE_SERVER_URL}",
+        "CONFLUENCE_SPACE_KEY": "${CONFLUENCE_SPACE_KEY}",
+        "CONFLUENCE_USERNAME": "${CONFLUENCE_USER_EMAIL}",
+        "CONFLUENCE_API_TOKEN": "${CONFLUENCE_API_TOKEN}"
+      },
+      "enabled": false,
+      "featureFlag": "MCP_ENABLE_CONFLUENCE",
+      "notes": "Uses mcp-atlassian (npm: mcp-atlassian). Credentials sourced from AWS Secrets Manager via ESO."
+    }
+  }
+}

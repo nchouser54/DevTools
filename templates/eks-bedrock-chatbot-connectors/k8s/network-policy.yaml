@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: bedrock-chatbot-connectors-network-policy
+  namespace: chatbot
+spec:
+  podSelector:
+    matchLabels:
+      app: bedrock-chatbot-connectors
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # DNS
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # HTTPS — required for Bedrock, GitHub, Jira, Confluence
+    - ports:
+        - protocol: TCP
+          port: 443

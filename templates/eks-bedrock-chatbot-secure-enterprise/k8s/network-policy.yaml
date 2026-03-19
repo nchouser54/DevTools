@@ -1,0 +1,45 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: bedrock-enterprise-network-policy
+  namespace: chatbot
+spec:
+  podSelector:
+    matchLabels:
+      app: bedrock-chatbot-enterprise
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow from ALB ingress controller pods only
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: aws-load-balancer-controller
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Allow from within namespace (e.g. health checks)
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # DNS
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # HTTPS — Bedrock API, GitHub, Jira, Confluence, Cognito
+    - ports:
+        - protocol: TCP
+          port: 443
+    # ADOT Collector (OTLP gRPC)
+    - ports:
+        - protocol: TCP
+          port: 4317

@@ -1,0 +1,164 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "eks-bedrock-chatbot-enterprise.fullname" . }}
+  namespace: {{ .Values.app.namespace }}
+  labels:
+    {{- include "eks-bedrock-chatbot-enterprise.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "eks-bedrock-chatbot-enterprise.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "eks-bedrock-chatbot-enterprise.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "eks-bedrock-chatbot-enterprise.fullname" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: enterprise-chatbot
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: AWS_REGION
+              value: {{ .Values.aws.region | quote }}
+            - name: BEDROCK_MODEL_ID
+              value: {{ .Values.aws.bedrockModelId | quote }}
+            - name: BEDROCK_EMBEDDING_MODEL_ID
+              value: {{ .Values.aws.bedrockEmbeddingModelId | quote }}
+            - name: BEDROCK_KB_ID
+              value: {{ .Values.bedrock.knowledgeBaseId | quote }}
+            - name: BEDROCK_KB_DATA_SOURCE_ID
+              value: {{ .Values.bedrock.knowledgeBaseDataSourceId | quote }}
+            - name: S3_DOCUMENT_BUCKET
+              value: {{ .Values.s3.documentBucket | quote }}
+            - name: S3_DOCUMENT_PREFIX
+              value: {{ .Values.s3.documentPrefix | quote }}
+            - name: RAG_MAX_RESULTS
+              value: {{ .Values.rag.maxResults | quote }}
+            - name: COGNITO_USER_POOL_ID
+              value: {{ .Values.cognito.userPoolId | quote }}
+            - name: COGNITO_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: cognito-secret
+                  key: COGNITO_CLIENT_ID
+            - name: OTEL_SERVICE_NAME
+              value: {{ .Values.otel.serviceName | quote }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.otel.collectorEndpoint | quote }}
+            - name: ESO_SECRET_STORE_NAME
+              value: {{ .Values.eso.secretStoreName | quote }}
+            {{- if .Values.connectors.github.enabled }}
+            - name: MCP_ENABLE_GITHUB
+              value: "true"
+            - name: GITHUB_SERVER_URL
+              value: {{ .Values.connectors.github.serverUrl | quote }}
+            - name: GITHUB_REPOSITORY
+              value: {{ .Values.connectors.github.repository | quote }}
+            - name: GITHUB_BRANCH
+              value: {{ .Values.connectors.github.branch | quote }}
+            - name: GITHUB_PAT
+              valueFrom:
+                secretKeyRef:
+                  name: github-connector-secret
+                  key: GITHUB_PAT
+            {{- end }}
+            {{- if .Values.connectors.jira.enabled }}
+            - name: MCP_ENABLE_JIRA
+              value: "true"
+            - name: JIRA_SERVER_URL
+              value: {{ .Values.connectors.jira.serverUrl | quote }}
+            - name: JIRA_PROJECT_KEY
+              value: {{ .Values.connectors.jira.projectKey | quote }}
+            - name: JIRA_PAT
+              valueFrom:
+                secretKeyRef:
+                  name: jira-connector-secret
+                  key: JIRA_PAT
+            {{- end }}
+            {{- if .Values.connectors.confluence.enabled }}
+            - name: MCP_ENABLE_CONFLUENCE
+              value: "true"
+            - name: CONFLUENCE_SERVER_URL
+              value: {{ .Values.connectors.confluence.serverUrl | quote }}
+            - name: CONFLUENCE_SPACE_KEY
+              value: {{ .Values.connectors.confluence.spaceKey | quote }}
+            - name: CONFLUENCE_PAT
+              valueFrom:
+                secretKeyRef:
+                  name: confluence-connector-secret
+                  key: CONFLUENCE_PAT
+            {{- end }}
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "eks-bedrock-chatbot-enterprise.fullname" . }}-ingest
+  namespace: {{ .Values.app.namespace }}
+  labels:
+    {{- include "eks-bedrock-chatbot-enterprise.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.ingestion.schedule | quote }}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: {{ include "eks-bedrock-chatbot-enterprise.fullname" . }}
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+          containers:
+            - name: ingest
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command: ["python", "workspace/ingest.py"]
+              env:
+                - name: AWS_REGION
+                  value: {{ .Values.aws.region | quote }}
+                - name: BEDROCK_KB_ID
+                  value: {{ .Values.bedrock.knowledgeBaseId | quote }}
+                - name: BEDROCK_KB_DATA_SOURCE_ID
+                  value: {{ .Values.bedrock.knowledgeBaseDataSourceId | quote }}
+                - name: S3_DOCUMENT_BUCKET
+                  value: {{ .Values.s3.documentBucket | quote }}
+                - name: S3_DOCUMENT_PREFIX
+                  value: {{ .Values.s3.documentPrefix | quote }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
