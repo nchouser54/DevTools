@@ -22,6 +22,7 @@ Where $I$ is impact, $R$ reuse, $O$ operational risk score, and $T$ time-to-valu
 ## High-priority candidates
 
 ### 1) Node/TypeScript AI Workspace
+
 - **Persona**: Frontend/full-stack teams building copilots and agent tooling in TS
 - **Core value**: Mirrors `python-ai-workspace` in Node ecosystem
 - **v0.1.0 scope**:
@@ -31,6 +32,7 @@ Where $I$ is impact, $R$ reuse, $O$ operational risk score, and $T$ time-to-valu
   - Coder variables for workspace owner/name
 
 ### 2) Platform SRE Runbook Workspace
+
 - **Persona**: SRE/platform engineers running kubectl/helm/terraform workflows
 - **Core value**: Secure, repeatable operational workspace with least privilege defaults
 - **v0.1.0 scope**:
@@ -39,6 +41,7 @@ Where $I$ is impact, $R$ reuse, $O$ operational risk score, and $T$ time-to-valu
   - MCP examples limited to docs/search + filesystem
 
 ### 3) Data Analysis Workspace (Python + Jupyter)
+
 - **Persona**: Analysts and ML engineers with notebook-heavy workflows
 - **Core value**: Turnkey data environment with validated package baseline
 - **v0.1.0 scope**:
@@ -47,6 +50,7 @@ Where $I$ is impact, $R$ reuse, $O$ operational risk score, and $T$ time-to-valu
   - MCP examples for filesystem and docs retrieval
 
 ### 4) Secure Enterprise API Builder
+
 - **Persona**: Backend teams deploying secure services to EKS
 - **Core value**: Opinionated starter for secure API workloads + deployment posture
 - **v0.1.0 scope**:
@@ -57,18 +61,22 @@ Where $I$ is impact, $R$ reuse, $O$ operational risk score, and $T$ time-to-valu
 ## Medium-priority candidates
 
 ### 5) Agent Evaluation Workspace
+
 - **Persona**: AI platform teams running eval loops and regression checks
 - **v0.1.0 scope**: eval dataset layout, pytest-based eval harness, metrics export stubs
 
 ### 6) Documentation Automation Workspace
+
 - **Persona**: Tech writers / developer advocacy
 - **v0.1.0 scope**: markdown lint, docs build pipeline, static site preview tooling
 
 ### 7) Incident Response Workspace
+
 - **Persona**: on-call and security operations
 - **v0.1.0 scope**: log query tools, runbook scripts, immutable shell history defaults
 
 ### 8) Internal Developer Portal Workspace
+
 - **Persona**: platform enablement teams
 - **v0.1.0 scope**: backstage/plugin development setup + policy linting tools
 
