@@ -1,0 +1,160 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: multi-provider-chatbot-gov
+  namespace: chatbot
+  labels:
+    app: multi-provider-chatbot-gov
+    version: "0.1.0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: multi-provider-chatbot-gov
+  template:
+    metadata:
+      labels:
+        app: multi-provider-chatbot-gov
+    spec:
+      serviceAccountName: bedrock-chatbot
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+        - name: chatbot
+          image: "replace-me/ai-multi-provider-workspace-gov:latest"
+          imagePullPolicy: Always
+          env:
+            - name: AWS_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: bedrock-chatbot-config
+                  key: aws_region
+            - name: BEDROCK_MODEL_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: bedrock-chatbot-config
+                  key: bedrock_model_id
+            - name: ALLOW_CONNECTOR_WRITES
+              valueFrom:
+                configMapKeyRef:
+                  name: bedrock-chatbot-config
+                  key: allow_connector_writes
+            - name: GITHUB_SERVER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bedrock-chatbot-config
+                  key: github_server_url
+            - name: GITHUB_REPOSITORY
+              valueFrom:
+                configMapKeyRef:
+                  name: bedrock-chatbot-config
+                  key: github_repository
+            - name: GITHUB_BRANCH
+              valueFrom:
+                configMapKeyRef:
+                  name: bedrock-chatbot-config
+                  key: github_branch
+            # Feature flags sourced from ConfigMap
+            - name: MCP_ENABLE_GITHUB
+              valueFrom:
+                configMapKeyRef:
+                  name: bedrock-chatbot-config
+                  key: mcp_enable_github
+            - name: MCP_ENABLE_JIRA
+              valueFrom:
+                configMapKeyRef:
+                  name: bedrock-chatbot-config
+                  key: mcp_enable_jira
+            - name: MCP_ENABLE_CONFLUENCE
+              valueFrom:
+                configMapKeyRef:
+                  name: bedrock-chatbot-config
+                  key: mcp_enable_confluence
+            # Connector tokens sourced from Secret
+            - name: GITHUB_PERSONAL_ACCESS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: multi-provider-chatbot-gov
+                  key: GITHUB_PERSONAL_ACCESS_TOKEN
+                  optional: true
+            - name: JIRA_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: multi-provider-chatbot-gov
+                  key: JIRA_API_TOKEN
+                  optional: true
+            - name: JIRA_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bedrock-chatbot-config
+                  key: jira_server_url
+            - name: JIRA_SERVER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bedrock-chatbot-config
+                  key: jira_server_url
+            - name: JIRA_PROJECT_KEY
+              valueFrom:
+                configMapKeyRef:
+                  name: bedrock-chatbot-config
+                  key: jira_project_key
+            - name: JIRA_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: multi-provider-chatbot-gov
+                  key: JIRA_USER_EMAIL
+                  optional: true
+            - name: JIRA_USER_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: multi-provider-chatbot-gov
+                  key: JIRA_USER_EMAIL
+                  optional: true
+            - name: CONFLUENCE_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: multi-provider-chatbot-gov
+                  key: CONFLUENCE_API_TOKEN
+                  optional: true
+            - name: CONFLUENCE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bedrock-chatbot-config
+                  key: confluence_server_url
+            - name: CONFLUENCE_SERVER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: bedrock-chatbot-config
+                  key: confluence_server_url
+            - name: CONFLUENCE_SPACE_KEY
+              valueFrom:
+                configMapKeyRef:
+                  name: bedrock-chatbot-config
+                  key: confluence_space_key
+            - name: CONFLUENCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: multi-provider-chatbot-gov
+                  key: CONFLUENCE_USER_EMAIL
+                  optional: true
+            - name: CONFLUENCE_USER_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: multi-provider-chatbot-gov
+                  key: CONFLUENCE_USER_EMAIL
+                  optional: true
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "512Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL

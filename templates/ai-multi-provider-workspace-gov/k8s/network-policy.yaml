@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: multi-provider-chatbot-gov-network-policy
+  namespace: chatbot
+spec:
+  podSelector:
+    matchLabels:
+      app: multi-provider-chatbot-gov
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # DNS
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # HTTPS — required for Bedrock, GitHub, Jira, Confluence
+    - ports:
+        - protocol: TCP
+          port: 443

@@ -1,0 +1,71 @@
+replicaCount: 1
+
+image:
+  repository: replace-me/ai-multi-provider-workspace-gov
+  tag: "latest"
+  pullPolicy: Always
+
+aws:
+  region: us-gov-west-1
+  bedrockModelId: replace-with-govcloud-sonnet-4.5-model-id
+  irsaRoleArn: "arn:aws:iam::ACCOUNT_ID:role/eks-bedrock-chatbot-role"
+
+ai:
+  provider: bedrock
+  azure:
+    endpoint: ""
+    deployment: ""
+    apiVersion: "2024-10-21"
+    apiKeySecret:
+      name: "azure-openai"
+      key: "api-key"
+
+app:
+  namespace: chatbot
+
+connectors:
+  allowWrites: false
+  github:
+    enabled: false
+    serverUrl: https://github.com
+    repository: owner/repo
+    branch: main
+    repoScope: any
+    allowedRepositoriesCsv: ""
+  jira:
+    enabled: false
+    serverUrl: https://your-org.atlassian.net
+    projectKey: TEAM
+    userEmail: you@example.com
+  confluence:
+    enabled: false
+    serverUrl: https://your-org.atlassian.net/wiki
+    spaceKey: ENG
+    userEmail: you@example.com
+
+auth:
+  required: false
+  allowedEmails: ""
+  trustedEmailHeadersCsv: "X-Forwarded-Email,X-Auth-Request-Email,X-Forwarded-User,Remote-Email"
+
+resources:
+  requests:
+    cpu: "250m"
+    memory: "256Mi"
+  limits:
+    cpu: "1000m"
+    memory: "512Mi"
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+networkPolicy:
+  enabled: true

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: multi-provider-chatbot-gov
+  namespace: chatbot
+  labels:
+    app: multi-provider-chatbot-gov
+spec:
+  selector:
+    app: multi-provider-chatbot-gov
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP
+  type: ClusterIP
