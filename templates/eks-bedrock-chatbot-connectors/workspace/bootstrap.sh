@@ -5,6 +5,7 @@ python -m pip install --no-cache-dir \
   boto3 \
   botocore \
   flask \
+  openai \
   python-dotenv \
   httpx \
   tenacity \

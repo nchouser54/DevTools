@@ -1,9 +1,36 @@
 {
   "name": "EKS Bedrock Chatbot Connectors",
   "slug": "eks-bedrock-chatbot-connectors",
-  "description": "Bedrock-powered chatbot on Amazon EKS with pre-wired GitHub, Jira, and Confluence MCP connectors. Extends the starter template with unified tool-routing and per-connector feature flags.",
+  "description": "Bedrock-powered solo chatbot workspace on Amazon EKS with pre-wired GitHub, Jira, and Confluence connectors. Extends the starter template with unified tool-routing, per-user ownership defaults, and per-connector feature flags.",
   "owner": "Rocket City Defense Solutions LLC",
-  "version": "0.1.0",
+  "version": "0.2.1",
+  "inputProfile": {
+    "mode": "minimal-first",
+    "minimalRequired": [
+      "EKS_CLUSTER_NAME",
+      "BEDROCK_MODEL_ID",
+      "IMAGE_REPOSITORY",
+      "IMAGE_TAG"
+    ],
+    "autoDerived": [
+      "WORKSPACE_NAME",
+      "K8S_NAMESPACE",
+      "WORKSPACE_OWNER",
+      "WORKSPACE_OWNER_EMAIL",
+      "JIRA_USER_EMAIL",
+      "CONFLUENCE_USER_EMAIL"
+    ],
+    "advancedOptional": [
+      "MODEL_PROVIDER",
+      "AZURE_OPENAI_ENDPOINT",
+      "AZURE_OPENAI_DEPLOYMENT",
+      "AUTH_REQUIRED",
+      "AUTH_OWNER_ONLY",
+      "AUTH_ALLOWED_EMAILS",
+      "GITHUB_REPO_SCOPE",
+      "GITHUB_ALLOWED_REPOSITORIES"
+    ]
+  },
   "runtime": {
     "language": "python",
     "pythonVersion": "3.12",
@@ -11,7 +38,7 @@
   },
   "platform": {
     "target": "amazon-eks",
-    "irsaRequired": true,
+    "irsaRequired": false,
     "helmChart": "helm/",
     "k8sManifests": "k8s/"
   },
@@ -26,25 +53,25 @@
       "enabled": false,
       "mcpServer": "@modelcontextprotocol/server-github",
       "requiredSecrets": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
-      "targetInputs": ["GITHUB_SERVER_URL", "GITHUB_REPOSITORY", "GITHUB_BRANCH"]
+      "targetInputs": ["GITHUB_REPOSITORY"]
     },
     "jira": {
       "enabled": false,
       "mcpServer": "mcp-atlassian",
       "requiredSecrets": ["JIRA_API_TOKEN", "JIRA_USER_EMAIL"],
-      "targetInputs": ["JIRA_SERVER_URL", "JIRA_PROJECT_KEY"]
+      "targetInputs": ["JIRA_PROJECT_KEY"]
     },
     "confluence": {
       "enabled": false,
       "mcpServer": "mcp-atlassian",
       "requiredSecrets": ["CONFLUENCE_API_TOKEN", "CONFLUENCE_USER_EMAIL"],
-      "targetInputs": ["CONFLUENCE_SERVER_URL", "CONFLUENCE_SPACE_KEY"]
+      "targetInputs": ["CONFLUENCE_SPACE_KEY"]
     }
   },
   "mcp": {
     "mode": "preconfigured-examples",
     "configPath": "mcp/servers.example.json",
-    "notes": "Enable connectors one at a time. Review token scopes before enabling in production."
+    "notes": "Designed for per-user workspaces: owner identity and owner email auto-derive from Coder when available, and users can provide their own connector credentials. Review token scopes before enabling in production."
   },
   "tags": [
     "coder",

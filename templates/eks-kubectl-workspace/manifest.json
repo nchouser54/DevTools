@@ -1,0 +1,26 @@
+{
+  "name": "EKS kubectl Workspace",
+  "slug": "eks-kubectl-workspace",
+  "description": "Coder workspace template for kubectl operations against Amazon EKS with awscli + kubeconfig helper workflow.",
+  "owner": "Rocket City Defense Solutions LLC",
+  "version": "0.1.0",
+  "runtime": {
+    "language": "bash",
+    "version": "latest",
+    "baseImage": "mcr.microsoft.com/devcontainers/base:bookworm"
+  },
+  "mcp": {
+    "mode": "preconfigured-examples",
+    "configPath": "mcp/servers.example.json",
+    "notes": "Example-only MCP definitions. Operators must review and adapt to their environment."
+  },
+  "tags": [
+    "coder",
+    "eks",
+    "kubernetes",
+    "kubectl",
+    "aws",
+    "operations",
+    "workspace"
+  ]
+}

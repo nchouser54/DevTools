@@ -114,3 +114,26 @@ Rate each 1–5:
 ### Review gate acceptance criteria
 
 - Decision and rationale captured in `memory-bank/decisionLog.md`
+
+---
+
+## Task Template F — kubectl Operations & Triage
+
+**When to use**: validating live Kubernetes behavior, debugging workspace deployment issues, or proving day-2 operability for EKS-backed templates.
+
+### kubectl checklist
+
+1. Verify cluster access and current context (`kubectl config current-context`)
+2. Confirm namespace exists and is active (`kubectl get ns`)
+3. Check workload health (`kubectl get deploy,po,svc -n <namespace>`)
+4. Inspect recent warnings/events (`kubectl get events -n <namespace> --sort-by=.lastTimestamp`)
+5. Validate pod logs for startup/runtime failures (`kubectl logs -n <namespace> <pod> --tail=200`)
+6. Validate service routing/endpoints (`kubectl get svc,endpoints -n <namespace>`)
+7. Confirm mounted config/secrets and env wiring (`kubectl describe pod -n <namespace> <pod>`)
+8. Record findings and remediation actions in template `README.md` troubleshooting section
+
+### kubectl acceptance criteria
+
+- Operator can reproduce health checks and triage steps using only documented commands
+- Deployment issues can be localized to one of: config, secrets, permissions, image, or networking
+- Troubleshooting notes are updated with exact symptom → diagnosis → fix guidance

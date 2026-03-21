@@ -1,0 +1,29 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-kubectl-admin
+  namespace: default # replace with your namespace
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-kubectl-admin-binding
+  namespace: default # replace with your namespace
+subjects:
+  # Option A: bind an IAM-mapped user/group principal
+  - kind: Group
+    name: coder-kubectl-admin
+    apiGroup: rbac.authorization.k8s.io
+
+  # Option B: bind a service account identity (uncomment and adjust if needed)
+  # - kind: ServiceAccount
+  #   name: your-service-account
+  #   namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-kubectl-admin

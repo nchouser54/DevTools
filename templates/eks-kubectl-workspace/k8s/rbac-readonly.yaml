@@ -1,0 +1,38 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-kubectl-readonly
+  namespace: default # replace with your namespace
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "services", "endpoints", "configmaps", "events", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "networkpolicies"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-kubectl-readonly-binding
+  namespace: default # replace with your namespace
+subjects:
+  # Option A: bind an IAM-mapped user/group principal (most common for EKS kubectl users)
+  - kind: Group
+    name: coder-kubectl-readonly
+    apiGroup: rbac.authorization.k8s.io
+
+  # Option B: bind a service account identity (uncomment and adjust if needed)
+  # - kind: ServiceAccount
+  #   name: your-service-account
+  #   namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-kubectl-readonly

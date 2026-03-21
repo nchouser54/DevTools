@@ -11,6 +11,16 @@ aws:
   bedrockEmbeddingModelId: amazon.titan-embed-text-v2:0
   irsaRoleArn: "arn:aws:iam::ACCOUNT_ID:role/eks-bedrock-chatbot-rag-role"
 
+ai:
+  provider: bedrock
+  azure:
+    endpoint: ""
+    deployment: ""
+    apiVersion: "2024-10-21"
+    apiKeySecret:
+      name: "azure-openai"
+      key: "api-key"
+
 bedrock:
   knowledgeBaseId: "replace-me"
   knowledgeBaseDataSourceId: "replace-me"
@@ -25,12 +35,19 @@ s3:
 app:
   namespace: chatbot
 
+auth:
+  required: false
+  allowedEmails: ""
+  trustedEmailHeadersCsv: "X-Forwarded-Email,X-Auth-Request-Email,X-Forwarded-User,Remote-Email"
+
 connectors:
   github:
     enabled: false
     serverUrl: https://github.com
     repository: owner/repo
     branch: main
+    repoScope: any
+    allowedRepositoriesCsv: ""
   jira:
     enabled: false
     serverUrl: https://your-org.atlassian.net

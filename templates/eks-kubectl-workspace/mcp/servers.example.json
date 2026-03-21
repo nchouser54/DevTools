@@ -1,0 +1,14 @@
+{
+  "servers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "${MCP_ALLOWED_ROOT}"
+      ],
+      "enabled": true,
+      "notes": "Restrict filesystem access to approved workspace roots."
+    }
+  }
+}

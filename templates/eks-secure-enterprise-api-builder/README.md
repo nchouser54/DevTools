@@ -20,11 +20,13 @@ See `.env.example` and set values during Coder template import:
 - `AWS_REGION`
 - `EKS_CLUSTER_NAME`
 - `K8S_NAMESPACE`
-- `IRSA_ROLE_ARN`
+- `IRSA_ROLE_ARN` (optional when pod identity/IRSA association is already managed externally)
 - `IMAGE_REPOSITORY`
 - `IMAGE_TAG`
 - `API_LOG_LEVEL`
 - `INGRESS_HOST`
+
+> **Note:** `IRSA_ROLE_ARN` can be left empty when pod identity/IRSA association is already managed externally.
 
 ## Layout
 

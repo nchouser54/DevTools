@@ -111,10 +111,10 @@ def _load_enterprise_chatbot():
     sys.modules["botocore.exceptions"] = fake_exceptions
     sys.modules["boto3"] = mock_boto3
 
-    os.environ.setdefault("BEDROCK_KB_ID", "kb-enterprise-001")
-    os.environ.setdefault("AWS_REGION", "us-gov-west-1")
-    os.environ.setdefault("OTEL_SERVICE_NAME", "bedrock-chatbot-enterprise")
-    os.environ.setdefault("OTEL_EXPORTER_OTLP_ENDPOINT", "http://adot-collector:4317")
+    os.environ["BEDROCK_KB_ID"] = "kb-enterprise-001"
+    os.environ["AWS_REGION"] = "us-gov-west-1"
+    os.environ["OTEL_SERVICE_NAME"] = "bedrock-chatbot-enterprise"
+    os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "http://adot-collector:4317"
 
     spec = importlib.util.spec_from_file_location(
         "enterprise_chatbot",

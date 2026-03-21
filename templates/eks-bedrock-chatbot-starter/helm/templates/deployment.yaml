@@ -25,10 +25,31 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
+            - name: MODEL_PROVIDER
+              value: {{ .Values.ai.provider | quote }}
             - name: AWS_REGION
               value: {{ .Values.aws.region | quote }}
             - name: BEDROCK_MODEL_ID
               value: {{ .Values.aws.bedrockModelId | quote }}
+            - name: AUTH_REQUIRED
+              value: {{ .Values.auth.required | quote }}
+            - name: AUTH_ALLOWED_EMAILS
+              value: {{ .Values.auth.allowedEmails | quote }}
+            - name: AUTH_TRUSTED_EMAIL_HEADERS
+              value: {{ .Values.auth.trustedEmailHeadersCsv | quote }}
+            {{- if or (eq .Values.ai.provider "azure") (eq .Values.ai.provider "dual") }}
+            - name: AZURE_OPENAI_ENDPOINT
+              value: {{ .Values.ai.azure.endpoint | quote }}
+            - name: AZURE_OPENAI_DEPLOYMENT
+              value: {{ .Values.ai.azure.deployment | quote }}
+            - name: AZURE_OPENAI_API_VERSION
+              value: {{ .Values.ai.azure.apiVersion | quote }}
+            - name: AZURE_OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.ai.azure.apiKeySecret.name | quote }}
+                  key: {{ .Values.ai.azure.apiKeySecret.key | quote }}
+            {{- end }}
           ports:
             - containerPort: 8080
               protocol: TCP

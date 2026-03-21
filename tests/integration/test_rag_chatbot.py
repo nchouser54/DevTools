@@ -41,8 +41,8 @@ def _load_rag_chatbot():
     sys.modules["botocore.exceptions"] = fake_exceptions
     sys.modules["boto3"] = mock_boto3
 
-    os.environ.setdefault("BEDROCK_KB_ID", "kb-test-123")
-    os.environ.setdefault("AWS_REGION", "us-gov-west-1")
+    os.environ["BEDROCK_KB_ID"] = "kb-test-123"
+    os.environ["AWS_REGION"] = "us-gov-west-1"
 
     spec = importlib.util.spec_from_file_location(
         "rag_chatbot",

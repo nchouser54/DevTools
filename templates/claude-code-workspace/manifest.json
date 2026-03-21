@@ -1,0 +1,51 @@
+{
+  "name": "Claude Code Workspace",
+  "slug": "claude-code-workspace",
+  "description": "Non-premium Coder workspace template for Claude Code with VS Code, web terminal, optional code-server, Bedrock IAM-role support, direct Claude CLI app shortcuts, and optional MCP configuration.",
+  "owner": "Rocket City Defense Solutions LLC",
+  "version": "0.1.0",
+  "inputProfile": {
+    "mode": "minimal-first",
+    "minimalRequired": [
+      "CONTAINER_IMAGE",
+      "WORKDIR"
+    ],
+    "autoDerived": [
+      "WORKSPACE_OWNER"
+    ],
+    "advancedOptional": [
+      "CLAUDE_API_KEY",
+      "CLAUDE_CODE_OAUTH_TOKEN",
+      "CLAUDE_MODEL",
+      "ENABLE_BEDROCK",
+      "AWS_REGION",
+      "AWS_BEARER_TOKEN_BEDROCK",
+      "GIT_REPO_URL",
+      "VSCODE_EXTENSIONS_CSV",
+      "ENABLE_CODE_SERVER",
+      "ENABLE_MCP_GITHUB",
+      "MCP_REMOTE_CONFIG_URLS_CSV"
+    ]
+  },
+  "runtime": {
+    "language": "shell",
+    "version": "latest",
+    "baseImage": "codercom/example-universal:ubuntu"
+  },
+  "mcp": {
+    "mode": "templated-json",
+    "configPath": "mcp/servers.example.json",
+    "notes": "The template can inject a generated MCP configuration into Claude Code without requiring Coder Premium AI Bridge or Tasks. It installs Claude directly in the workspace, supports Bedrock via IAM-role/default AWS credential chain (with optional bearer-token fallback), and uses standard Coder apps for the post-spinup experience. Review MCP server packages and token scopes before enabling them in production."
+  },
+  "tags": [
+    "coder",
+    "claude",
+    "claude-code",
+    "workspace",
+    "docker",
+    "mcp",
+    "vscode",
+    "terminal",
+    "code-server"
+  ]
+}

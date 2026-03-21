@@ -1,6 +1,7 @@
 boto3
 botocore
 Flask
+openai
 atlassian-python-api
 PyGithub
 structlog

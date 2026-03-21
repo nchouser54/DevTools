@@ -13,8 +13,23 @@ aws:
   bedrockModelId: replace-with-govcloud-sonnet-4.5-model-id
   irsaRoleArn: "arn:aws:iam::ACCOUNT_ID:role/eks-bedrock-chatbot-role"
 
+ai:
+  provider: bedrock
+  azure:
+    endpoint: ""
+    deployment: ""
+    apiVersion: "2024-10-21"
+    apiKeySecret:
+      name: "azure-openai"
+      key: "api-key"
+
 app:
   namespace: chatbot
+
+auth:
+  required: false
+  allowedEmails: ""
+  trustedEmailHeadersCsv: "X-Forwarded-Email,X-Auth-Request-Email,X-Forwarded-User,Remote-Email"
 
 resources:
   requests:

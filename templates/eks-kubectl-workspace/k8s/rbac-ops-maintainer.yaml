@@ -1,0 +1,57 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: coder-kubectl-ops-maintainer
+  namespace: default # replace with your namespace
+rules:
+  # Read access for common day-2 triage resources
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services", "endpoints", "configmaps", "events", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs", "cronjobs"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "networkpolicies"]
+    verbs: ["get", "list", "watch"]
+
+  # Controlled maintenance actions
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets"]
+    verbs: ["patch", "update"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale", "statefulsets/scale"]
+    verbs: ["get", "update", "patch"]
+
+  # Allow deleting/recreating pods for operational recovery
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete"]
+
+  # Optional batch maintenance control
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: coder-kubectl-ops-maintainer-binding
+  namespace: default # replace with your namespace
+subjects:
+  # Option A: bind an IAM-mapped group/user principal
+  - kind: Group
+    name: coder-kubectl-ops-maintainer
+    apiGroup: rbac.authorization.k8s.io
+
+  # Option B: bind a service account identity (uncomment and adjust if needed)
+  # - kind: ServiceAccount
+  #   name: your-service-account
+  #   namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: coder-kubectl-ops-maintainer

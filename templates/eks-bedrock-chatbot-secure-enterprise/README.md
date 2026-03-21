@@ -3,8 +3,14 @@
 Production-hardened tier of the EKS Bedrock chatbot template family. Includes all capabilities
 of `eks-bedrock-chatbot-rag` plus:
 
-This tier is tuned for **GovCloud Sonnet 4.5** as the primary model target and preserves the
-same operator-entered integration settings: GitHub repo/branch, GitHub server, Jira server,
+This tier supports AI provider mode selection:
+
+- `bedrock` (AWS GovCloud Bedrock)
+- `azure` (Azure OpenAI in Azure US Government)
+- `dual` (both enabled; request-time provider selection)
+
+It remains tuned for **GovCloud Sonnet 4.5** as the default model target and preserves the same
+operator-entered integration settings: GitHub repo/branch, GitHub server, Jira server,
 Confluence server, and a PAT/API token for each external system.
 
 - **Amazon Cognito OIDC/SSO** — authenticates human users before reaching the chatbot
@@ -59,6 +65,13 @@ Includes all from `eks-bedrock-chatbot-rag`, plus:
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | ADOT collector endpoint (default: `http://adot-collector:4317`) |
 | `OTEL_SERVICE_NAME` | Service name for traces |
 | `ESO_SECRET_STORE_NAME` | ESO `ClusterSecretStore` or `SecretStore` name |
+| `MODEL_PROVIDER` | `bedrock`, `azure`, or `dual` |
+| `AZURE_OPENAI_ENDPOINT` | Azure Gov endpoint such as `https://<resource>.openai.azure.us/` |
+| `AZURE_OPENAI_DEPLOYMENT` | Azure OpenAI deployment name |
+| `AZURE_OPENAI_API_VERSION` | Azure API version (default `2024-10-21`) |
+| `AZURE_OPENAI_API_KEY` | Azure API key loaded from Kubernetes Secret/ESO |
+
+> **Note:** `IRSA_ROLE_ARN` can be left empty when pod identity/IRSA association is already managed externally.
 
 Inherited connector inputs remain part of the operator workflow:
 
@@ -67,6 +80,8 @@ Inherited connector inputs remain part of the operator workflow:
 | `GITHUB_SERVER_URL` | GitHub or GitHub Enterprise Server URL |
 | `GITHUB_REPOSITORY` | Target repo in `owner/repo` form |
 | `GITHUB_BRANCH` | Target branch for GitHub operations |
+| `GITHUB_REPO_SCOPE` | `any`, `configured`, or `allowlist` repo policy |
+| `GITHUB_ALLOWED_REPOSITORIES` | CSV allowlist used when `GITHUB_REPO_SCOPE=allowlist` |
 | `GITHUB_PERSONAL_ACCESS_TOKEN` | GitHub PAT |
 | `JIRA_SERVER_URL` | Jira server URL |
 | `JIRA_PROJECT_KEY` | Default Jira project key |
@@ -74,6 +89,36 @@ Inherited connector inputs remain part of the operator workflow:
 | `CONFLUENCE_SERVER_URL` | Confluence server URL |
 | `CONFLUENCE_SPACE_KEY` | Default Confluence space key |
 | `CONFLUENCE_API_TOKEN` | Confluence PAT/API token |
+
+## Minimal operator inputs (recommended)
+
+Set these explicitly:
+
+- `EKS_CLUSTER_NAME`
+- `BEDROCK_MODEL_ID`, `BEDROCK_KB_ID`, `BEDROCK_KB_DATA_SOURCE_ID`
+- `S3_DOCUMENT_BUCKET`
+- `COGNITO_USER_POOL_ID`, `COGNITO_CLIENT_ID`, `COGNITO_REGION`
+- `ESO_SECRET_STORE_NAME` and secret mappings
+- image repository/tag
+
+Can be left empty / auto-derived by template defaults:
+
+- `IRSA_ROLE_ARN` → optional when pod identity/IRSA association is already managed externally
+- `workspace_name` → active Coder workspace name
+- `k8s_namespace` → derived from workspace name when blank
+- `jira_user_email`, `confluence_user_email` → fall back to `workspace_owner_email`
+- with `auth_owner_only=true`, allow-list resolves to owner email automatically
+- `github_repo_scope` defaults to `any` for developer multi-repo workflows
+
+## Developer repo-scope controls (GitHub)
+
+When GitHub connector usage is enabled, repository scope policy can be configured:
+
+- `github_repo_scope=any` *(default)*: any `owner/repo` target is permitted.
+- `github_repo_scope=configured`: only `github_repository` is permitted.
+- `github_repo_scope=allowlist`: only repositories from
+   `github_allowed_repositories_csv` are permitted (falls back to `github_repository`
+   when allowlist is empty).
 
 ## Enabling ESO
 
@@ -93,6 +138,7 @@ Inherited connector inputs remain part of the operator workflow:
 ## Security notes
 
 - All tokens and credentials are sourced exclusively from AWS Secrets Manager via ESO.
+- Azure API keys should be synced through ESO/Secrets Manager (or another approved backend secret store), never hardcoded.
 - The namespace has `pod-security.kubernetes.io/enforce: restricted` applied.
 - NetworkPolicies allow only explicit traffic paths.
 - PodDisruptionBudgets (`minAvailable: 1`) prevent outages during rolling updates.

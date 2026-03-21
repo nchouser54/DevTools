@@ -10,6 +10,16 @@ aws:
   bedrockModelId: replace-with-govcloud-sonnet-4.5-model-id
   irsaRoleArn: "arn:aws:iam::ACCOUNT_ID:role/eks-bedrock-chatbot-role"
 
+ai:
+  provider: bedrock
+  azure:
+    endpoint: ""
+    deployment: ""
+    apiVersion: "2024-10-21"
+    apiKeySecret:
+      name: "azure-openai"
+      key: "api-key"
+
 app:
   namespace: chatbot
 
@@ -20,6 +30,8 @@ connectors:
     serverUrl: https://github.com
     repository: owner/repo
     branch: main
+    repoScope: any
+    allowedRepositoriesCsv: ""
   jira:
     enabled: false
     serverUrl: https://your-org.atlassian.net
@@ -30,6 +42,11 @@ connectors:
     serverUrl: https://your-org.atlassian.net/wiki
     spaceKey: ENG
     userEmail: you@example.com
+
+auth:
+  required: false
+  allowedEmails: ""
+  trustedEmailHeadersCsv: "X-Forwarded-Email,X-Auth-Request-Email,X-Forwarded-User,Remote-Email"
 
 resources:
   requests:

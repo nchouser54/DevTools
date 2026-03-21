@@ -1,0 +1,617 @@
+terraform {
+  required_version = ">= 1.5.0"
+
+  required_providers {
+    coder = {
+      source  = "coder/coder"
+      version = ">= 2.12.0"
+    }
+    docker = {
+      source  = "kreuzwerker/docker"
+      version = ">= 3.0.2"
+    }
+  }
+}
+
+variable "socket" {
+  type        = string
+  description = "Docker daemon socket used by the workspace template runtime. Example: unix:///var/run/docker.sock"
+  default     = "unix:///var/run/docker.sock"
+}
+
+variable "container_image" {
+  type        = string
+  description = "Container image used for the Claude workspace runtime."
+  default     = "codercom/example-universal:ubuntu"
+}
+
+variable "workdir" {
+  type        = string
+  description = "Working directory where Claude Code runs."
+  default     = "/home/coder/project"
+}
+
+variable "enable_code_server" {
+  type        = bool
+  description = "Expose code-server as a post-spinup workspace app."
+  default     = true
+}
+
+variable "git_repo_url" {
+  type        = string
+  description = "Optional Git repository URL to clone into the workspace on start."
+  default     = ""
+}
+
+variable "git_repo_branch" {
+  type        = string
+  description = "Git branch used when cloning or updating the repository."
+  default     = "main"
+}
+
+variable "vscode_extensions_csv" {
+  type        = string
+  description = "Optional comma-separated VS Code extension IDs to preinstall (e.g. ms-python.python,amazonwebservices.aws-toolkit-vscode)."
+  default     = ""
+}
+
+variable "claude_api_key" {
+  type        = string
+  description = "Anthropic API key for Claude Code. Leave empty to authenticate later or use OAuth token instead."
+  default     = ""
+  sensitive   = true
+}
+
+variable "claude_code_oauth_token" {
+  type        = string
+  description = "Claude Code OAuth/session token generated from `claude setup-token`. Leave empty when using API key or manual login."
+  default     = ""
+  sensitive   = true
+}
+
+variable "claude_code_version" {
+  type        = string
+  description = "Claude Code version to install. Use latest or pin to a tested release."
+  default     = "latest"
+}
+
+variable "install_via_npm" {
+  type        = bool
+  description = "Install Claude Code via npm instead of the official installer. Useful as a compatibility fallback."
+  default     = false
+}
+
+variable "claude_model" {
+  type        = string
+  description = "Optional default Claude model. Leave empty to use Claude defaults."
+  default     = ""
+}
+
+variable "enable_bedrock" {
+  type        = bool
+  description = "Enable AWS Bedrock mode for Claude Code. Recommended when authenticating with IAM role credentials."
+  default     = true
+}
+
+variable "aws_region" {
+  type        = string
+  description = "AWS region for Bedrock requests (used when enable_bedrock=true)."
+  default     = "us-gov-west-1"
+}
+
+variable "aws_bearer_token_bedrock" {
+  type        = string
+  description = "Optional AWS Bedrock bearer token fallback when IAM role credentials are not available in runtime."
+  default     = ""
+  sensitive   = true
+}
+
+variable "permission_mode" {
+  type        = string
+  description = "Claude permission mode. One of: empty/default/acceptEdits/plan/bypassPermissions."
+  default     = "plan"
+
+  validation {
+    condition     = contains(["", "default", "acceptEdits", "plan", "bypassPermissions"], var.permission_mode)
+    error_message = "permission_mode must be one of: empty, default, acceptEdits, plan, bypassPermissions."
+  }
+}
+
+variable "enable_mcp_filesystem" {
+  type        = bool
+  description = "Enable filesystem MCP configuration for Claude Code."
+  default     = true
+}
+
+variable "mcp_allowed_root" {
+  type        = string
+  description = "Allowed filesystem root for the filesystem MCP server."
+  default     = "/home/coder/project"
+}
+
+variable "enable_mcp_github" {
+  type        = bool
+  description = "Enable GitHub MCP configuration for Claude Code."
+  default     = false
+}
+
+variable "mcp_github_token" {
+  type        = string
+  description = "GitHub PAT used by the GitHub MCP server when enabled."
+  default     = ""
+  sensitive   = true
+}
+
+variable "mcp_github_server_url" {
+  type        = string
+  description = "GitHub or GitHub Enterprise Server URL used by GitHub MCP."
+  default     = "https://github.com"
+}
+
+variable "mcp_github_repository" {
+  type        = string
+  description = "Default GitHub repository for GitHub MCP in owner/repo format."
+  default     = "owner/repo"
+}
+
+variable "mcp_github_branch" {
+  type        = string
+  description = "Default GitHub branch for GitHub MCP."
+  default     = "main"
+}
+
+variable "mcp_remote_config_urls_csv" {
+  type        = string
+  description = "Optional comma-separated list of remote URLs returning Claude MCP JSON configuration."
+  default     = ""
+}
+
+provider "docker" {
+  host = var.socket
+}
+
+provider "coder" {}
+
+data "coder_workspace" "me" {}
+
+data "coder_workspace_owner" "me" {}
+
+data "coder_provisioner" "me" {}
+
+locals {
+  workspace_owner_effective = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
+  workspace_owner_email     = try(data.coder_workspace_owner.me.email, "")
+  claude_permission_arg     = trimspace(var.permission_mode) != "" ? " --permission-mode ${var.permission_mode}" : ""
+  remote_mcp_config_urls = compact([
+    for item in split(",", var.mcp_remote_config_urls_csv) : trimspace(item)
+  ])
+  vscode_extensions = compact([
+    for item in split(",", var.vscode_extensions_csv) : trimspace(item)
+  ])
+
+  post_spinup_apps = compact([
+    "Claude Code CLI",
+    "Claude Auth Setup",
+    "VS Code",
+    "Web Terminal",
+    var.enable_code_server ? "code-server" : ""
+  ])
+}
+
+check "claude_auth_inputs" {
+  assert {
+    condition     = !(length(trimspace(var.claude_api_key)) > 0 && length(trimspace(var.claude_code_oauth_token)) > 0)
+    error_message = "Provide either claude_api_key or claude_code_oauth_token, not both."
+  }
+}
+
+check "github_mcp_inputs" {
+  assert {
+    condition     = !var.enable_mcp_github || can(regex("^[^/\\s]+/[^/\\s]+$", trimspace(var.mcp_github_repository)))
+    error_message = "mcp_github_repository must be in owner/repo format when enable_mcp_github is true."
+  }
+
+  assert {
+    condition     = !var.enable_mcp_github || length(trimspace(var.mcp_github_token)) > 0
+    error_message = "mcp_github_token must be set when enable_mcp_github is true."
+  }
+}
+
+resource "coder_agent" "main" {
+  os   = "linux"
+  arch = data.coder_provisioner.me.arch
+  dir  = var.workdir
+
+  display_apps {
+    vscode                 = true
+    vscode_insiders        = false
+    ssh_helper             = false
+    port_forwarding_helper = true
+    web_terminal           = true
+  }
+
+  startup_script_behavior = "blocking"
+  connection_timeout      = 300
+
+  env = {
+    GIT_AUTHOR_NAME       = local.workspace_owner_effective
+    GIT_AUTHOR_EMAIL      = local.workspace_owner_email
+    GIT_COMMITTER_NAME    = local.workspace_owner_effective
+    GIT_COMMITTER_EMAIL   = local.workspace_owner_email
+    ENABLE_MCP_FILESYSTEM = tostring(var.enable_mcp_filesystem)
+    ENABLE_MCP_GITHUB     = tostring(var.enable_mcp_github)
+    MCP_ALLOWED_ROOT      = var.mcp_allowed_root
+    MCP_GITHUB_SERVER_URL = var.mcp_github_server_url
+    MCP_GITHUB_REPOSITORY = var.mcp_github_repository
+    MCP_GITHUB_BRANCH     = var.mcp_github_branch
+    MCP_REMOTE_CONFIG_URLS = var.mcp_remote_config_urls_csv
+    ENABLE_BEDROCK        = tostring(var.enable_bedrock)
+    AWS_REGION            = var.aws_region
+    AWS_DEFAULT_REGION    = var.aws_region
+  }
+
+  startup_script = <<-EOT
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    export PATH="$HOME/.local/bin:$PATH"
+    need_npm="false"
+
+    if [[ "${var.install_via_npm}" == "true" || "${tostring(var.enable_mcp_filesystem)}" == "true" || "${tostring(var.enable_mcp_github)}" == "true" ]]; then
+      need_npm="true"
+    fi
+
+    if command -v sudo >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
+      sudo apt-get update
+      sudo apt-get install -y --no-install-recommends git curl jq tmux ca-certificates >/dev/null
+      if [[ "$need_npm" == "true" ]] && ! command -v npx >/dev/null 2>&1; then
+        sudo apt-get install -y --no-install-recommends npm >/dev/null
+      fi
+    fi
+
+    if [[ -n "${var.vscode_extensions_csv}" ]]; then
+      IFS=',' read -r -a vscode_extensions <<< "${var.vscode_extensions_csv}"
+      for raw_ext in "$${vscode_extensions[@]}"; do
+        ext="$(echo "$raw_ext" | xargs)"
+        [[ -z "$ext" ]] && continue
+        if command -v code-server >/dev/null 2>&1; then
+          code-server --install-extension "$ext" >/dev/null 2>&1 || true
+        fi
+        if command -v openvscode-server >/dev/null 2>&1; then
+          openvscode-server --install-extension "$ext" >/dev/null 2>&1 || true
+        fi
+      done
+    fi
+
+    mkdir -p "$(dirname '${var.workdir}')"
+
+    if [[ -n "${var.git_repo_url}" ]]; then
+      if [[ ! -d "${var.workdir}/.git" ]]; then
+        rm -rf "${var.workdir}"
+        git clone --branch "${var.git_repo_branch}" --single-branch "${var.git_repo_url}" "${var.workdir}"
+      else
+        cd "${var.workdir}"
+        git fetch origin "${var.git_repo_branch}" || true
+        git checkout "${var.git_repo_branch}" || true
+      fi
+    else
+      mkdir -p "${var.workdir}"
+    fi
+
+    if ! command -v claude >/dev/null 2>&1; then
+      if [[ "${var.install_via_npm}" == "true" ]]; then
+        if ! command -v npm >/dev/null 2>&1 && command -v sudo >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
+          sudo apt-get install -y --no-install-recommends npm >/dev/null
+        fi
+        npm install -g "@anthropic-ai/claude-code@${var.claude_code_version}"
+      else
+        curl -fsSL claude.ai/install.sh | bash -s -- "${var.claude_code_version}"
+      fi
+    fi
+
+    export PATH="$HOME/.local/bin:$PATH"
+
+    add_mcp_servers() {
+      local mcp_json="$1"
+      while IFS= read -r server_name && IFS= read -r server_json; do
+        claude mcp add-json "$server_name" "$server_json" || true
+      done < <(echo "$mcp_json" | jq -r '.mcpServers | to_entries[] | .key, (.value | @json)')
+    }
+
+    if command -v claude >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+      if [[ -n "$${CLAUDE_API_KEY:-}" ]]; then
+        claude_config="$HOME/.claude.json"
+        if [[ -f "$claude_config" ]]; then
+          jq --arg workdir "${var.workdir}" --arg apikey "$CLAUDE_API_KEY" '.autoUpdaterStatus = "disabled" |
+            .bypassPermissionsModeAccepted = true |
+            .hasAcknowledgedCostThreshold = true |
+            .hasCompletedOnboarding = true |
+            .primaryApiKey = $apikey |
+            .projects[$workdir].hasCompletedProjectOnboarding = true |
+            .projects[$workdir].hasTrustDialogAccepted = true' "$claude_config" > "$${claude_config}.tmp" && mv "$${claude_config}.tmp" "$claude_config"
+        else
+          cat > "$claude_config" <<EOF
+{
+  "autoUpdaterStatus": "disabled",
+  "bypassPermissionsModeAccepted": true,
+  "hasAcknowledgedCostThreshold": true,
+  "hasCompletedOnboarding": true,
+  "primaryApiKey": "$${CLAUDE_API_KEY:-}",
+  "projects": {
+    "${var.workdir}": {
+      "hasCompletedProjectOnboarding": true,
+      "hasTrustDialogAccepted": true
+    }
+  }
+}
+EOF
+        fi
+      fi
+
+      local_mcp_json=$(jq -n \
+        --arg root "${var.mcp_allowed_root}" \
+        --arg ghToken "$${MCP_GITHUB_TOKEN:-}" \
+        --arg ghServer "${var.mcp_github_server_url}" \
+        --arg ghRepo "${var.mcp_github_repository}" \
+        --arg ghBranch "${var.mcp_github_branch}" \
+        --arg enableFs "${tostring(var.enable_mcp_filesystem)}" \
+        --arg enableGh "${tostring(var.enable_mcp_github)}" \
+        '{
+          mcpServers: (
+            ($enableFs == "true" ? {
+              filesystem: {
+                command: "npx",
+                args: ["-y", "@modelcontextprotocol/server-filesystem", $root]
+              }
+            } : {}) +
+            ($enableGh == "true" ? {
+              github: {
+                command: "npx",
+                args: ["-y", "@modelcontextprotocol/server-github"],
+                env: {
+                  GITHUB_PERSONAL_ACCESS_TOKEN: $ghToken,
+                  GITHUB_SERVER_URL: $ghServer,
+                  GITHUB_REPOSITORY: $ghRepo,
+                  GITHUB_BRANCH: $ghBranch
+                }
+              }
+            } : {})
+          )
+        }')
+
+      if [[ "$(echo "$local_mcp_json" | jq '.mcpServers | length')" -gt 0 ]]; then
+        cd "${var.workdir}"
+        add_mcp_servers "$local_mcp_json"
+      fi
+
+      if [[ -n "${var.mcp_remote_config_urls_csv}" ]]; then
+        IFS=',' read -r -a remote_urls <<< "${var.mcp_remote_config_urls_csv}"
+        cd "${var.workdir}"
+        for raw_url in "$${remote_urls[@]}"; do
+          url="$(echo "$raw_url" | xargs)"
+          [[ -z "$url" ]] && continue
+          mcp_json=$(curl -fsSL "$url") || continue
+          echo "$mcp_json" | jq -e '.mcpServers' >/dev/null 2>&1 || continue
+          add_mcp_servers "$mcp_json"
+        done
+      fi
+    fi
+  EOT
+}
+
+resource "coder_env" "claude_api_key" {
+  count    = length(trimspace(var.claude_api_key)) > 0 ? 1 : 0
+  agent_id = coder_agent.main.id
+  name     = "CLAUDE_API_KEY"
+  value    = var.claude_api_key
+}
+
+resource "coder_env" "claude_code_oauth_token" {
+  count    = length(trimspace(var.claude_code_oauth_token)) > 0 ? 1 : 0
+  agent_id = coder_agent.main.id
+  name     = "CLAUDE_CODE_OAUTH_TOKEN"
+  value    = var.claude_code_oauth_token
+}
+
+resource "coder_env" "anthropic_model" {
+  count    = length(trimspace(var.claude_model)) > 0 ? 1 : 0
+  agent_id = coder_agent.main.id
+  name     = "ANTHROPIC_MODEL"
+  value    = var.claude_model
+}
+
+resource "coder_env" "claude_code_use_bedrock" {
+  count    = var.enable_bedrock ? 1 : 0
+  agent_id = coder_agent.main.id
+  name     = "CLAUDE_CODE_USE_BEDROCK"
+  value    = "1"
+}
+
+resource "coder_env" "aws_region" {
+  count    = var.enable_bedrock ? 1 : 0
+  agent_id = coder_agent.main.id
+  name     = "AWS_REGION"
+  value    = var.aws_region
+}
+
+resource "coder_env" "aws_default_region" {
+  count    = var.enable_bedrock ? 1 : 0
+  agent_id = coder_agent.main.id
+  name     = "AWS_DEFAULT_REGION"
+  value    = var.aws_region
+}
+
+resource "coder_env" "aws_bearer_token_bedrock" {
+  count    = length(trimspace(var.aws_bearer_token_bedrock)) > 0 ? 1 : 0
+  agent_id = coder_agent.main.id
+  name     = "AWS_BEARER_TOKEN_BEDROCK"
+  value    = var.aws_bearer_token_bedrock
+}
+
+resource "coder_env" "mcp_github_token" {
+  count    = length(trimspace(var.mcp_github_token)) > 0 ? 1 : 0
+  agent_id = coder_agent.main.id
+  name     = "MCP_GITHUB_TOKEN"
+  value    = var.mcp_github_token
+}
+
+module "coder-login" {
+  count    = data.coder_workspace.me.start_count > 0 ? 1 : 0
+  source   = "registry.coder.com/modules/coder-login/coder"
+  agent_id = coder_agent.main.id
+}
+
+module "dotfiles" {
+  count    = data.coder_workspace.me.start_count > 0 ? 1 : 0
+  source   = "registry.coder.com/modules/dotfiles/coder"
+  agent_id = coder_agent.main.id
+}
+
+module "git-config" {
+  count    = data.coder_workspace.me.start_count > 0 ? 1 : 0
+  source   = "registry.coder.com/modules/git-config/coder"
+  agent_id = coder_agent.main.id
+}
+
+module "code-server" {
+  count    = data.coder_workspace.me.start_count > 0 && var.enable_code_server ? 1 : 0
+  source   = "registry.coder.com/modules/code-server/coder"
+  agent_id = coder_agent.main.id
+  folder   = var.workdir
+}
+
+resource "coder_app" "claude_code_cli" {
+  agent_id     = coder_agent.main.id
+  slug         = "claude-code"
+  display_name = "Claude Code"
+  icon         = "${data.coder_workspace.me.access_url}/icon/claude.svg"
+  command      = "bash -lc 'cd \"${var.workdir}\" && claude${local.claude_permission_arg}'"
+  share        = "owner"
+  order        = 1
+  tooltip      = "Launch Claude Code in the workspace terminal."
+}
+
+resource "coder_app" "claude_auth_setup" {
+  agent_id     = coder_agent.main.id
+  slug         = "claude-auth"
+  display_name = "Claude Auth Setup"
+  icon         = "${data.coder_workspace.me.access_url}/icon/lock.svg"
+  command      = "bash -lc 'cd \"${var.workdir}\" && claude setup-token'"
+  share        = "owner"
+  order        = 2
+  tooltip      = "Run Claude interactive auth/token setup inside the workspace."
+}
+
+resource "docker_container" "workspace" {
+  count = data.coder_workspace.me.start_count
+
+  image    = var.container_image
+  name     = "coder-${data.coder_workspace_owner.me.name}-${lower(data.coder_workspace.me.name)}"
+  hostname = lower(data.coder_workspace.me.name)
+  dns      = ["1.1.1.1"]
+
+  command = [
+    "sh",
+    "-c",
+    <<-EOT
+      trap '[ $? -ne 0 ] && echo === Agent script exited with non-zero code. Sleeping infinitely to preserve logs... && sleep infinity' EXIT
+      ${replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")}
+    EOT
+  ]
+
+  env = [
+    "CODER_AGENT_TOKEN=${coder_agent.main.token}"
+  ]
+
+  volumes {
+    container_path = "/home/coder"
+    volume_name    = docker_volume.home.name
+    read_only      = false
+  }
+
+  host {
+    host = "host.docker.internal"
+    ip   = "host-gateway"
+  }
+}
+
+resource "docker_volume" "home" {
+  name = "coder-${data.coder_workspace_owner.me.name}-${data.coder_workspace.me.name}"
+}
+
+resource "coder_metadata" "workspace_info" {
+  count       = data.coder_workspace.me.start_count
+  resource_id = docker_container.workspace[0].id
+  icon        = "${data.coder_workspace.me.access_url}/icon/claude.svg"
+  hide        = false
+
+  item {
+    key   = "workspace_owner"
+    value = local.workspace_owner_effective
+  }
+
+  item {
+    key   = "container_image"
+    value = var.container_image
+  }
+
+  item {
+    key   = "workdir"
+    value = var.workdir
+  }
+
+  item {
+    key   = "git_repo"
+    value = var.git_repo_url != "" ? var.git_repo_url : "none"
+  }
+
+  item {
+    key   = "code_server"
+    value = tostring(var.enable_code_server)
+  }
+
+  item {
+    key   = "claude_auth_mode"
+    value = length(trimspace(var.claude_api_key)) > 0 ? "api-key" : length(trimspace(var.claude_code_oauth_token)) > 0 ? "oauth-token" : "interactive-login"
+  }
+
+  item {
+    key   = "bedrock_enabled"
+    value = tostring(var.enable_bedrock)
+  }
+
+  item {
+    key   = "aws_region"
+    value = var.aws_region
+  }
+}
+
+output "template_summary" {
+  value = {
+    owner            = local.workspace_owner_effective
+    owner_email      = local.workspace_owner_email
+    container_image  = var.container_image
+    workdir          = var.workdir
+    git_repository   = var.git_repo_url
+    git_branch       = var.git_repo_branch
+    claude_model     = var.claude_model
+    bedrock = {
+      enabled                   = var.enable_bedrock
+      aws_region                = var.aws_region
+      using_bearer_token        = length(trimspace(var.aws_bearer_token_bedrock)) > 0
+      expected_authn_precedence = "iam-role-or-default-aws-credentials-chain"
+    }
+    code_server      = var.enable_code_server
+    vscode_extensions = local.vscode_extensions
+    install_via_npm  = var.install_via_npm
+    post_spinup_apps = local.post_spinup_apps
+    mcp = {
+      filesystem_enabled = var.enable_mcp_filesystem
+      github_enabled     = var.enable_mcp_github
+      allowed_root       = var.mcp_allowed_root
+      remote_urls        = local.remote_mcp_config_urls
+    }
+    auth_mode = length(trimspace(var.claude_api_key)) > 0 ? "api-key" : length(trimspace(var.claude_code_oauth_token)) > 0 ? "oauth-token" : "interactive-login"
+  }
+  description = "Summary of the non-premium Claude Code workspace configuration."
+}

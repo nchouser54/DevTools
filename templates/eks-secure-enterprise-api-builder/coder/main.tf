@@ -14,6 +14,10 @@ terraform {
       source  = "hashicorp/helm"
       version = ">= 2.12, < 3.0"
     }
+    coder = {
+      source  = "coder/coder"
+      version = ">= 0.11.0"
+    }
   }
 }
 
@@ -49,7 +53,8 @@ variable "k8s_namespace" {
 
 variable "irsa_role_arn" {
   type        = string
-  description = "ARN for the IRSA role used by the API ServiceAccount. See docs/iam-policies/secure-enterprise-api-builder-irsa-policy.json."
+  description = "Optional ARN of the IRSA IAM role for the workload ServiceAccount. Leave empty when pod identity/IRSA is already managed externally. See template-specific policy examples under docs/iam-policies/."
+  default     = ""
   sensitive   = true
 }
 
@@ -103,6 +108,9 @@ provider "helm" {
   }
 }
 
+provider "coder" {
+}
+
 locals {
   template_name = var.workspace_name
   template_tags = ["eks", "aws", "api", "security", "helm", "irsa"]
@@ -125,9 +133,9 @@ resource "kubernetes_service_account" "api" {
   metadata {
     name      = "secure-api"
     namespace = kubernetes_namespace.api.metadata[0].name
-    annotations = {
+    annotations = length(trimspace(var.irsa_role_arn)) > 0 ? {
       "eks.amazonaws.com/role-arn" = var.irsa_role_arn
-    }
+    } : {}
   }
 }
 
@@ -183,9 +191,12 @@ resource "helm_release" "api_builder" {
     value = var.ingress_host
   }
 
-  set_sensitive {
-    name  = "aws.irsaRoleArn"
-    value = var.irsa_role_arn
+  dynamic "set_sensitive" {
+    for_each = length(trimspace(var.irsa_role_arn)) > 0 ? [1] : []
+    content {
+      name  = "aws.irsaRoleArn"
+      value = var.irsa_role_arn
+    }
   }
 
   depends_on = [
@@ -206,4 +217,54 @@ output "template_summary" {
     helm_release  = helm_release.api_builder.name
   }
   description = "Workspace metadata for Coder UI and operational handoff."
+}
+
+output "api_namespace" {
+  value       = kubernetes_namespace.api.metadata[0].name
+  description = "Kubernetes namespace where API Builder is deployed."
+}
+
+output "api_service_account" {
+  value       = kubernetes_service_account.api.metadata[0].name
+  description = "Kubernetes Service Account for the API Builder workload."
+}
+
+# ---------------------------------------------------------------------------
+# Coder metadata – workspace UI integration
+# ---------------------------------------------------------------------------
+
+data "coder_workspace" "me" {
+}
+
+resource "coder_metadata" "workspace_info" {
+  count = data.coder_workspace.me.name != "" ? 1 : 0
+
+  resource_id = data.coder_workspace.me.id
+  icon        = "https://www.svgrepo.com/show/354430/aws.svg"
+  hide        = false
+
+  item {
+    key   = "cluster"
+    value = var.eks_cluster_name
+  }
+
+  item {
+    key   = "namespace"
+    value = kubernetes_namespace.api.metadata[0].name
+  }
+
+  item {
+    key   = "region"
+    value = var.aws_region
+  }
+
+  item {
+    key   = "helm_release"
+    value = helm_release.api_builder.name
+  }
+
+  item {
+    key   = "service_account"
+    value = kubernetes_service_account.api.metadata[0].name
+  }
 }
