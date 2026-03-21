@@ -65,6 +65,8 @@ Includes all variables from `eks-bedrock-chatbot-starter`, plus:
 | `AZURE_OPENAI_ENDPOINT` | Azure Gov endpoint such as `https://<resource>.openai.azure.us/` |
 | `AZURE_OPENAI_DEPLOYMENT` | Azure OpenAI deployment name |
 | `AZURE_OPENAI_API_VERSION` | Azure API version |
+| `BEDROCK_ALLOWED_MODEL_IDS` | Optional comma-separated allowlist of Bedrock model IDs |
+| `AZURE_ALLOWED_DEPLOYMENTS` | Optional comma-separated allowlist of Azure deployment names |
 | `AZURE_OPENAI_API_KEY` | Loaded from Kubernetes Secret |
 
 | Variable | Description |
@@ -109,7 +111,22 @@ The template now validates key inputs at workspace creation time to prevent brok
 - If `enable_jira_connector=true`, `jira_pat` must be set.
 - If `enable_confluence_connector=true`, `confluence_pat` must be set.
 - If `model_provider` is `azure` or `dual`, `azure_openai_endpoint` and `azure_openai_deployment` must be set.
+- If `bedrock_allowed_model_ids_csv` is set, `bedrock_model_id` must be in that allowlist.
+- If `azure_allowed_deployments_csv` is set, `azure_openai_deployment` must be in that allowlist.
 - If `auth_owner_only=true`, an effective workspace owner email must exist (either entered explicitly or auto-derived from Coder).
+
+## Built-in workspace CLI
+
+This template now installs an `ai` command inside the workspace container for terminal-based model access.
+
+Examples:
+
+- `ai health`
+- `ai providers`
+- `ai chat "Summarize the current deployment status"`
+- `ai chat "Use Azure for this response" --provider azure`
+
+By default, `ai` talks to `http://127.0.0.1:8080`. Override with `CHATBOT_BASE_URL` when needed.
 
 ## Minimal operator inputs (recommended)
 

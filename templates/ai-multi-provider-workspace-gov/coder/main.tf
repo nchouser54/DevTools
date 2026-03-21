@@ -55,6 +55,12 @@ variable "bedrock_model_id" {
   default     = "replace-with-govcloud-sonnet-4.5-model-id"
 }
 
+variable "bedrock_allowed_model_ids_csv" {
+  type        = string
+  description = "Optional comma-separated allowlist of Bedrock model IDs. Leave empty to allow any model ID."
+  default     = ""
+}
+
 variable "model_provider" {
   type        = string
   description = "AI provider mode: bedrock, azure, or dual (both available; request can select provider)."
@@ -75,6 +81,12 @@ variable "azure_openai_endpoint" {
 variable "azure_openai_deployment" {
   type        = string
   description = "Azure OpenAI deployment name used by the chatbot when provider mode includes azure."
+  default     = ""
+}
+
+variable "azure_allowed_deployments_csv" {
+  type        = string
+  description = "Optional comma-separated allowlist of Azure OpenAI deployment names. Leave empty to allow any deployment."
   default     = ""
 }
 
@@ -332,6 +344,11 @@ locals {
 
 check "connector_input_requirements" {
   assert {
+    condition     = !contains(["bedrock", "dual"], lower(var.model_provider)) || length(trimspace(var.bedrock_model_id)) > 0
+    error_message = "bedrock_model_id must be set when model_provider is bedrock or dual."
+  }
+
+  assert {
     condition     = !contains(["azure", "dual"], lower(var.model_provider)) || length(trimspace(var.azure_openai_endpoint)) > 0
     error_message = "azure_openai_endpoint must be set when model_provider is azure or dual."
   }
@@ -339,6 +356,24 @@ check "connector_input_requirements" {
   assert {
     condition     = !contains(["azure", "dual"], lower(var.model_provider)) || length(trimspace(var.azure_openai_deployment)) > 0
     error_message = "azure_openai_deployment must be set when model_provider is azure or dual."
+  }
+
+  assert {
+    condition = (
+      !contains(["bedrock", "dual"], lower(var.model_provider)) ||
+      length(trimspace(var.bedrock_allowed_model_ids_csv)) == 0 ||
+      contains([for id in split(",", var.bedrock_allowed_model_ids_csv) : trimspace(id)], trimspace(var.bedrock_model_id))
+    )
+    error_message = "bedrock_model_id must be included in bedrock_allowed_model_ids_csv when the allowlist is set."
+  }
+
+  assert {
+    condition = (
+      !contains(["azure", "dual"], lower(var.model_provider)) ||
+      length(trimspace(var.azure_allowed_deployments_csv)) == 0 ||
+      contains([for id in split(",", var.azure_allowed_deployments_csv) : trimspace(id)], trimspace(var.azure_openai_deployment))
+    )
+    error_message = "azure_openai_deployment must be included in azure_allowed_deployments_csv when the allowlist is set."
   }
 
   assert {
@@ -404,6 +439,8 @@ resource "kubernetes_config_map" "chatbot_config" {
     AZURE_OPENAI_ENDPOINT       = var.azure_openai_endpoint
     AZURE_OPENAI_DEPLOYMENT     = var.azure_openai_deployment
     AZURE_OPENAI_API_VERSION    = var.azure_openai_api_version
+    BEDROCK_ALLOWED_MODEL_IDS   = var.bedrock_allowed_model_ids_csv
+    AZURE_ALLOWED_DEPLOYMENTS   = var.azure_allowed_deployments_csv
     APP_NAMESPACE               = local.k8s_namespace_effective
     ALLOW_CONNECTOR_WRITES      = tostring(var.allow_connector_writes)
     GITHUB_ENABLED              = tostring(var.enable_github_connector)
