@@ -211,6 +211,8 @@ When enabled:
 
 ## Workspace creation flow (recommended)
 
+For field-by-field Coder UI values, use: `docs/coder-ui-field-paste-sheets.md`.
+
 At Coder workspace creation, users enter:
 
 1. Connector enable flags (`enable_github_connector`, `enable_jira_connector`, `enable_confluence_connector`).

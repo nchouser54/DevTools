@@ -1,0 +1,58 @@
+{
+  "name": "Claude Code Workspace Connectors",
+  "slug": "claude-code-workspace-connectors",
+  "description": "Enterprise-ready non-premium Coder workspace template for Claude Code with Bedrock-first IAM auth and automatic GitHub/Jira/Confluence MCP setup.",
+  "owner": "Rocket City Defense Solutions LLC",
+  "version": "0.1.0",
+  "inputProfile": {
+    "mode": "minimal-first",
+    "minimalRequired": [
+      "CONTAINER_IMAGE",
+      "WORKDIR"
+    ],
+    "autoDerived": [
+      "WORKSPACE_OWNER"
+    ],
+    "advancedOptional": [
+      "CLAUDE_API_KEY",
+      "CLAUDE_CODE_OAUTH_TOKEN",
+      "CLAUDE_MODEL",
+      "ENABLE_BEDROCK",
+      "AWS_REGION",
+      "AWS_BEARER_TOKEN_BEDROCK",
+      "GIT_REPO_URL",
+      "VSCODE_EXTENSIONS_CSV",
+      "ENABLE_CODE_SERVER",
+      "ENABLE_MCP_GITHUB",
+      "ENABLE_MCP_JIRA",
+      "ENABLE_MCP_CONFLUENCE",
+      "MCP_REMOTE_CONFIG_URLS_CSV",
+      "HTTPS_PROXY",
+      "HTTP_PROXY",
+      "NO_PROXY"
+    ]
+  },
+  "runtime": {
+    "language": "shell",
+    "version": "latest",
+    "baseImage": "codercom/example-universal:ubuntu"
+  },
+  "mcp": {
+    "mode": "templated-json",
+    "configPath": "mcp/servers.example.json",
+    "notes": "This template installs Claude directly in the workspace and auto-registers enterprise MCP servers for GitHub, Jira, and Confluence when enabled. It remains non-premium (no AI Bridge or Tasks)."
+  },
+  "tags": [
+    "coder",
+    "claude",
+    "claude-code",
+    "workspace",
+    "docker",
+    "mcp",
+    "enterprise",
+    "github",
+    "jira",
+    "confluence",
+    "bedrock"
+  ]
+}

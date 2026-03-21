@@ -81,6 +81,8 @@ Start with these docs:
 - `docs/architecture.md`
 - `docs/template-contract.md`
 - `docs/templates/python-ai-workspace.md`
+- `docs/coder-copy-paste-runbook.md`
+- `docs/coder-ui-field-paste-sheets.md`
 
 Then run the validation script once templates are present:
 

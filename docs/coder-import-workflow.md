@@ -2,6 +2,8 @@
 
 This guide explains how to import an EKS Bedrock chatbot template into a live Coder control plane, map template parameters, and bind your secrets backend.
 
+For a copy/paste-safe operator flow (including Claude workspace templates), use: `docs/coder-copy-paste-runbook.md`.
+
 ---
 
 ## Prerequisites
