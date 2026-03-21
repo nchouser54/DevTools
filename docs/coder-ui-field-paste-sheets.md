@@ -8,7 +8,7 @@ Goal: eliminate guesswork by showing exactly what to paste into each field.
 
 ## Template: `claude-code-workspace-connectors`
 
-### Recommended EKS "works-first" values
+### Recommended Claude connectors values
 
 | Coder field (parameter) | Paste this value | Why |
 | --- | --- | --- |
@@ -54,9 +54,40 @@ Goal: eliminate guesswork by showing exactly what to paste into each field.
 
 ---
 
+## Template: `shared-ec2-workspace-pool`
+
+### Recommended shared-pool values
+
+| Coder field (parameter) | Paste this value | Why |
+| --- | --- | --- |
+| `workspace_profile` | `python` | Stable default profile |
+| `workspace_size` | `medium` | Balanced shared-host footprint |
+| `image_python` | `mcr.microsoft.com/devcontainers/python:1-3.12-bookworm` | Known Python image |
+| `image_claude` | `codercom/example-universal:ubuntu` | General-purpose Claude profile base |
+| `image_devsecops` | `codercom/example-universal:ubuntu` | General-purpose devsecops base |
+| `enable_code_server` | `true` | Browser IDE fallback |
+| `workdir` | `/home/coder/project` | Standard workspace path |
+| `git_repo_url` | `https://github.example.mil/org/repo.git` | Optional repository bootstrap |
+| `git_repo_branch` | `main` | Default branch |
+| `enable_mcp_filesystem` | `true` | Local file MCP support |
+| `mcp_allowed_root` | `/home/coder/project` | Restrict filesystem MCP scope |
+| `enable_mcp_github` | `false` | Keep off unless token is provided |
+
+### If enabling GitHub MCP
+
+| Coder field (parameter) | Paste this value |
+| --- | --- |
+| `enable_mcp_github` | `true` |
+| `mcp_github_server_url` | `https://github.example.mil` |
+| `mcp_github_repository` | `org/repo` |
+| `mcp_github_branch` | `main` |
+| `mcp_github_token` | `<PASTE_GITHUB_TOKEN>` |
+
+---
+
 ## Template: `eks-bedrock-chatbot-connectors`
 
-### Recommended "works-first" values
+### Recommended EKS connectors values
 
 | Coder field (parameter) | Paste this value | Why |
 | --- | --- | --- |
@@ -121,5 +152,6 @@ For EKS connectors template:
 
 - `docs/coder-copy-paste-runbook.md`
 - `docs/coder-import-workflow.md`
+- `templates/shared-ec2-workspace-pool/README.md`
 - `templates/claude-code-workspace-connectors/README.md`
 - `templates/eks-bedrock-chatbot-connectors/README.md`

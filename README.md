@@ -83,6 +83,7 @@ Start with these docs:
 - `docs/templates/python-ai-workspace.md`
 - `docs/coder-copy-paste-runbook.md`
 - `docs/coder-ui-field-paste-sheets.md`
+- `templates/shared-ec2-workspace-pool/README.md`
 
 Then run the validation script once templates are present:
 

@@ -1,0 +1,51 @@
+{
+  "name": "Shared EC2 Workspace Pool",
+  "slug": "shared-ec2-workspace-pool",
+  "description": "Profile-driven Coder workspace template for shared EC2 host pools, enabling multiple isolated user workspaces per host to reduce EC2 instance count.",
+  "owner": "Rocket City Defense Solutions LLC",
+  "version": "0.1.0",
+  "inputProfile": {
+    "mode": "minimal-first",
+    "minimalRequired": [
+      "WORKSPACE_PROFILE",
+      "WORKSPACE_SIZE"
+    ],
+    "autoDerived": [
+      "WORKSPACE_OWNER"
+    ],
+    "advancedOptional": [
+      "IMAGE_PYTHON",
+      "IMAGE_CLAUDE",
+      "IMAGE_DEVSECOPS",
+      "GIT_REPO_URL",
+      "GIT_REPO_BRANCH",
+      "VSCODE_EXTENSIONS_CSV",
+      "ENABLE_MCP_GITHUB",
+      "MCP_GITHUB_SERVER_URL",
+      "MCP_GITHUB_REPOSITORY",
+      "MCP_GITHUB_BRANCH"
+    ]
+  },
+  "runtime": {
+    "language": "shell",
+    "version": "latest",
+    "baseImage": "codercom/example-universal:ubuntu"
+  },
+  "mcp": {
+    "mode": "templated-json",
+    "configPath": "mcp/servers.example.json",
+    "notes": "Optional MCP server configuration with filesystem and GitHub examples. Keep tokens in sensitive Coder parameters."
+  },
+  "tags": [
+    "coder",
+    "workspace",
+    "shared-host",
+    "ec2",
+    "profiles",
+    "cost-optimization",
+    "mcp",
+    "python",
+    "claude",
+    "devsecops"
+  ]
+}

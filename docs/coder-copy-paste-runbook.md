@@ -31,6 +31,7 @@ coder whoami
 
 | Template | Slug | Directory |
 | --- | --- | --- |
+| Shared EC2 Workspace Pool | `shared-ec2-workspace-pool` | `templates/shared-ec2-workspace-pool/coder` |
 | Claude Code Workspace | `claude-code-workspace` | `templates/claude-code-workspace/coder` |
 | Claude Code Workspace Connectors | `claude-code-workspace-connectors` | `templates/claude-code-workspace-connectors/coder` |
 | EKS Bedrock Chatbot Connectors | `eks-bedrock-chatbot-connectors` | `templates/eks-bedrock-chatbot-connectors/coder` |
@@ -97,7 +98,26 @@ If your network requires an outbound proxy, add these parameters:
 
 ---
 
-## 6) Create workspace — EKS connectors template (chatbot deployment)
+## 6) Create workspace — Shared EC2 workspace pool template
+
+```bash
+coder create shared-pool-demo \
+   --template shared-ec2-workspace-pool \
+   -p workspace_profile=python \
+   -p workspace_size=medium \
+   -p image_python=mcr.microsoft.com/devcontainers/python:1-3.12-bookworm \
+   -p image_claude=codercom/example-universal:ubuntu \
+   -p image_devsecops=codercom/example-universal:ubuntu \
+   -p enable_code_server=true \
+   -p git_repo_url=https://github.example.mil/org/repo.git \
+   -p git_repo_branch=main \
+   -p enable_mcp_filesystem=true \
+   -p mcp_allowed_root=/home/coder/project
+```
+
+---
+
+## 7) Create workspace — EKS connectors template (chatbot deployment)
 
 ```bash
 coder create eks-connectors-demo \
@@ -127,7 +147,7 @@ coder create eks-connectors-demo \
 
 ---
 
-## 7) 60-second verification checklist
+## 8) 60-second verification checklist
 
 After workspace creation:
 
@@ -152,7 +172,7 @@ kubectl -n <namespace> get configmap chatbot-config -o yaml
 
 ---
 
-## 8) Common copy/paste mistakes (and how to avoid them)
+## 9) Common copy/paste mistakes (and how to avoid them)
 
 1. **Wrong template slug**
    - Always copy the exact slug from the table above.
@@ -172,5 +192,6 @@ kubectl -n <namespace> get configmap chatbot-config -o yaml
 - `docs/coder-ui-field-paste-sheets.md`
 - `docs/coder-import-workflow.md`
 - `docs/template-contract.md`
+- `templates/shared-ec2-workspace-pool/README.md`
 - `templates/claude-code-workspace-connectors/README.md`
 - `templates/eks-bedrock-chatbot-connectors/README.md`
