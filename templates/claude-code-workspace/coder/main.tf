@@ -51,7 +51,7 @@ variable "memory_limit" {
 
 variable "container_image" {
   type        = string
-  description = "Container image used for the Claude workspace runtime."
+  description = "Container image used for the Claude workspace runtime. This is overridden if envbuilder_repo_url is provided."
   default     = "ubuntu:latest"
 }
 
@@ -83,6 +83,12 @@ variable "git_repo_branch" {
   type        = string
   description = "Git branch used when cloning or updating the repository (optional, defaults to main)."
   default     = "main"
+}
+
+variable "envbuilder_repo_url" {
+  type        = string
+  description = "Git repository URL containing Dockerfile or .devcontainer.json for envbuilder to build the workspace image. Leave blank to use default ubuntu:latest image."
+  default     = ""
 }
 
 variable "vscode_extensions_csv" {
@@ -283,11 +289,15 @@ resource "coder_agent" "main" {
     ENABLE_BEDROCK        = tostring(var.enable_bedrock)
     AWS_REGION            = var.aws_region
     AWS_DEFAULT_REGION    = var.aws_region
+    ENVBUILDER_GIT_URL    = var.envbuilder_repo_url
   }
 
   startup_script = <<-EOT
     #!/usr/bin/env bash
     set -euo pipefail
+    
+    # If ENVBUILDER_GIT_URL is set, Coder will build the image from that repo's Dockerfile/devcontainer.json
+    # before starting this script. Leave it empty to use the default container_image.
 
     export PATH="$HOME/.local/bin:$PATH"
     need_npm="false"
