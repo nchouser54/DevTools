@@ -19,6 +19,10 @@ After the workspace starts, users can access:
 - **Web Terminal** from the workspace agent bar
 - **code-server** (optional, enabled by default)
 
+> Import-safe mode: this template currently disables optional external convenience modules
+> (`coder-login`, `dotfiles`, `git-config`, `code-server`) to maximize Coder import reliability
+> in restricted environments.
+
 This is the exact kind of post-spinup app surface you were aiming for.
 
 ## What this template includes
@@ -26,6 +30,7 @@ This is the exact kind of post-spinup app surface you were aiming for.
 - Docker-backed Coder workspace runtime
 - direct Claude Code installation via the official installer or npm fallback
 - optional `code-server` module
+- import-safe defaults that avoid external Coder module resolution during template import
 - built-in Coder app surfaces via `display_apps`
 - optional Git repository clone on startup
 - optional generated MCP configuration for Claude Code
@@ -129,7 +134,7 @@ At minimum, operators should review:
 | Claude Auth Setup | `coder_app` launching `claude setup-token` | Yes |
 | VS Code button | `coder_agent.display_apps` | Yes |
 | Web Terminal | `coder_agent.display_apps` | Yes |
-| code-server | `code-server` module | Yes |
+| code-server | `code-server` module | Disabled (import-safe default) |
 
 ## Notes
 
