@@ -37,6 +37,12 @@ variable "enable_code_server" {
   default     = true
 }
 
+variable "enable_git_features" {
+  type        = bool
+  description = "Enable git-dependent convenience modules (dotfiles/git-config). Disable when git is unavailable in workspace runtime PATH."
+  default     = false
+}
+
 variable "git_repo_url" {
   type        = string
   description = "Optional Git repository URL to clone into the workspace on start."
@@ -194,7 +200,8 @@ locals {
     "Claude Auth Setup",
     "VS Code",
     "Web Terminal",
-    var.enable_code_server ? "code-server" : ""
+    var.enable_code_server ? "code-server" : "",
+    var.enable_git_features ? "git-config" : ""
   ])
 }
 
@@ -286,13 +293,17 @@ resource "coder_agent" "main" {
     mkdir -p "$(dirname '${var.workdir}')"
 
     if [[ -n "${var.git_repo_url}" ]]; then
-      if [[ ! -d "${var.workdir}/.git" ]]; then
-        rm -rf "${var.workdir}"
-        git clone --branch "${var.git_repo_branch}" --single-branch "${var.git_repo_url}" "${var.workdir}"
+      if command -v git >/dev/null 2>&1; then
+        if [[ ! -d "${var.workdir}/.git" ]]; then
+          rm -rf "${var.workdir}"
+          git clone --branch "${var.git_repo_branch}" --single-branch "${var.git_repo_url}" "${var.workdir}" || true
+        else
+          cd "${var.workdir}"
+          git fetch origin "${var.git_repo_branch}" || true
+          git checkout "${var.git_repo_branch}" || true
+        fi
       else
-        cd "${var.workdir}"
-        git fetch origin "${var.git_repo_branch}" || true
-        git checkout "${var.git_repo_branch}" || true
+        echo "[coder-template] git not found on PATH; skipping repository bootstrap for ${var.git_repo_url}"
       fi
     else
       mkdir -p "${var.workdir}"
@@ -462,13 +473,13 @@ module "coder-login" {
 }
 
 module "dotfiles" {
-  count    = data.coder_workspace.me.start_count > 0 ? 1 : 0
+  count    = data.coder_workspace.me.start_count > 0 && var.enable_git_features ? 1 : 0
   source   = "github.com/coder/modules//dotfiles"
   agent_id = coder_agent.main.id
 }
 
 module "git-config" {
-  count    = data.coder_workspace.me.start_count > 0 ? 1 : 0
+  count    = data.coder_workspace.me.start_count > 0 && var.enable_git_features ? 1 : 0
   source   = "github.com/coder/modules//git-config"
   agent_id = coder_agent.main.id
 }
@@ -566,6 +577,11 @@ resource "coder_metadata" "workspace_info" {
   }
 
   item {
+    key   = "git_features_enabled"
+    value = tostring(var.enable_git_features)
+  }
+
+  item {
     key   = "code_server"
     value = tostring(var.enable_code_server)
   }
@@ -594,6 +610,7 @@ output "template_summary" {
     workdir          = var.workdir
     git_repository   = var.git_repo_url
     git_branch       = var.git_repo_branch
+    git_features_enabled = var.enable_git_features
     claude_model     = var.claude_model
     bedrock = {
       enabled                   = var.enable_bedrock

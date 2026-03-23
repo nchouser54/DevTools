@@ -58,6 +58,12 @@ Leave both empty if you want users to authenticate interactively inside the work
 If `GIT_REPO_URL` is set, the workspace startup script clones the repository into `WORKDIR`.
 If the repository already exists, it fetches updates and checks out the configured branch.
 
+If `git` is not available on PATH in the runtime image, startup now logs a warning and skips
+repository bootstrap rather than failing workspace start.
+
+Set `ENABLE_GIT_FEATURES=true` only when your runtime image has a working `git` binary on PATH.
+This toggle controls git-dependent convenience modules (`dotfiles`, `git-config`).
+
 Users can still clone and work with any other repository from terminal/VS Code after startup.
 
 ## Bedrock authentication (primary path)
@@ -99,6 +105,7 @@ At minimum, operators should review:
 - `CONTAINER_IMAGE`
 - `WORKDIR`
 - `ENABLE_CODE_SERVER`
+- `ENABLE_GIT_FEATURES`
 - `CLAUDE_CODE_VERSION`
 - `INSTALL_VIA_NPM`
 - `CLAUDE_API_KEY`
