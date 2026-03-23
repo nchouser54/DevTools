@@ -516,7 +516,7 @@ resource "coder_app" "claude_auth_setup" {
   tooltip      = "Run Claude interactive auth/token setup inside the workspace."
 }
 
-resource "kubernetes_persistent_volume_claim" "home" {
+resource "kubernetes_persistent_volume_claim_v1" "home" {
   metadata {
     name      = "coder-${data.coder_workspace_owner.me.name}-${data.coder_workspace.me.name}-home"
     namespace = var.namespace
@@ -606,14 +606,14 @@ resource "kubernetes_deployment" "workspace" {
         volume {
           name = "home-directory"
           persistent_volume_claim {
-            claim_name = kubernetes_persistent_volume_claim.home.metadata[0].name
+            claim_name = kubernetes_persistent_volume_claim_v1.home.metadata[0].name
           }
         }
       }
     }
   }
 
-  depends_on = [kubernetes_persistent_volume_claim.home]
+  depends_on = [kubernetes_persistent_volume_claim_v1.home]
 }
 
 resource "coder_metadata" "workspace_info" {
