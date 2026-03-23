@@ -466,31 +466,6 @@ resource "coder_env" "mcp_github_token" {
   value    = var.mcp_github_token
 }
 
-module "coder-login" {
-  count    = 0
-  source   = "github.com/coder/modules//coder-login"
-  agent_id = coder_agent.main.id
-}
-
-module "dotfiles" {
-  count    = 0
-  source   = "github.com/coder/modules//dotfiles"
-  agent_id = coder_agent.main.id
-}
-
-module "git-config" {
-  count    = 0
-  source   = "github.com/coder/modules//git-config"
-  agent_id = coder_agent.main.id
-}
-
-module "code-server" {
-  count    = 0
-  source   = "github.com/coder/modules//code-server"
-  agent_id = coder_agent.main.id
-  folder   = var.workdir
-}
-
 resource "coder_app" "claude_code_cli" {
   agent_id     = coder_agent.main.id
   slug         = "claude-code"
