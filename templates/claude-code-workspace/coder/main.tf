@@ -28,13 +28,13 @@ variable "storage_size" {
 variable "cpu_request" {
   type        = string
   description = "CPU request for the workspace pod."
-  default     = "250m"
+  default     = "500m"
 }
 
 variable "memory_request" {
   type        = string
   description = "Memory request for the workspace pod."
-  default     = "512Mi"
+  default     = "1Gi"
 }
 
 variable "cpu_limit" {
@@ -52,7 +52,7 @@ variable "memory_limit" {
 variable "container_image" {
   type        = string
   description = "Container image used for the Claude workspace runtime."
-  default     = "codercom/example-universal:ubuntu"
+  default     = "ubuntu:latest"
 }
 
 variable "workdir" {
