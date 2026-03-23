@@ -28,13 +28,11 @@ variable "storage_size" {
 variable "cpu_request" {
   type        = string
   description = "CPU request for the workspace pod."
-  default     = "500m"
 }
 
 variable "memory_request" {
   type        = string
   description = "Memory request for the workspace pod."
-  default     = "1Gi"
 }
 
 variable "cpu_limit" {
@@ -75,14 +73,12 @@ variable "enable_git_features" {
 
 variable "git_repo_url" {
   type        = string
-  description = "Optional Git repository URL to clone into the workspace on start."
-  default     = ""
+  description = "Git repository URL to clone into the workspace on start."
 }
 
 variable "git_repo_branch" {
   type        = string
   description = "Git branch used when cloning or updating the repository."
-  default     = "main"
 }
 
 variable "vscode_extensions_csv" {
