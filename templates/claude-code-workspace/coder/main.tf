@@ -715,4 +715,5 @@ output "template_summary" {
     auth_mode = length(trimspace(var.claude_api_key)) > 0 ? "api-key" : length(trimspace(var.claude_code_oauth_token)) > 0 ? "oauth-token" : "interactive-login"
   }
   description = "Summary of the non-premium Claude Code workspace configuration."
+  sensitive   = true
 }
