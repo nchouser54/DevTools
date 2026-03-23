@@ -536,7 +536,7 @@ resource "kubernetes_persistent_volume_claim_v1" "home" {
   }
 }
 
-resource "kubernetes_deployment" "workspace" {
+resource "kubernetes_deployment_v1" "workspace" {
   count = data.coder_workspace.me.start_count
 
   metadata {
@@ -618,7 +618,7 @@ resource "kubernetes_deployment" "workspace" {
 
 resource "coder_metadata" "workspace_info" {
   count       = data.coder_workspace.me.start_count
-  resource_id = kubernetes_deployment.workspace[0].id
+  resource_id = kubernetes_deployment_v1.workspace[0].id
   icon        = "${data.coder_workspace.me.access_url}/icon/claude.svg"
   hide        = false
 
