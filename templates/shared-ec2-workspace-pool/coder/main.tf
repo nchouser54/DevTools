@@ -363,31 +363,6 @@ resource "coder_env" "mcp_github_token" {
   value    = var.mcp_github_token
 }
 
-module "coder-login" {
-  count    = data.coder_workspace.me.start_count > 0 ? 1 : 0
-  source   = "github.com/coder/modules//coder-login"
-  agent_id = coder_agent.main.id
-}
-
-module "dotfiles" {
-  count    = data.coder_workspace.me.start_count > 0 ? 1 : 0
-  source   = "github.com/coder/modules//dotfiles"
-  agent_id = coder_agent.main.id
-}
-
-module "git-config" {
-  count    = data.coder_workspace.me.start_count > 0 ? 1 : 0
-  source   = "github.com/coder/modules//git-config"
-  agent_id = coder_agent.main.id
-}
-
-module "code-server" {
-  count    = data.coder_workspace.me.start_count > 0 && var.enable_code_server ? 1 : 0
-  source   = "github.com/coder/modules//code-server"
-  agent_id = coder_agent.main.id
-  folder   = var.workdir
-}
-
 resource "docker_container" "workspace" {
   count = data.coder_workspace.me.start_count
 
