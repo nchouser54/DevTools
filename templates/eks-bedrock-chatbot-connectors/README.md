@@ -11,6 +11,10 @@ restricted to the workspace owner when upstream identity headers are available.
 This tier supports `bedrock`, `azure`, or `dual` provider mode. In dual mode, developers can choose
 the provider per request while still using the same connector action interface.
 
+This is a **service-style template**, not a full Linux workstation template. Users get a deployed
+chatbot endpoint plus Coder metadata cards describing access and status; they do **not** get a
+built-in Web Terminal, VS Code session, or remote desktop from this template.
+
 It exposes explicit user inputs for the GitHub repository/branch plus the designated server and
 PAT/API token for each external system.
 
@@ -65,6 +69,8 @@ Includes all variables from `eks-bedrock-chatbot-starter`, plus:
 | `AZURE_OPENAI_ENDPOINT` | Azure Gov endpoint such as `https://<resource>.openai.azure.us/` |
 | `AZURE_OPENAI_DEPLOYMENT` | Azure OpenAI deployment name |
 | `AZURE_OPENAI_API_VERSION` | Azure API version |
+| `BEDROCK_ALLOWED_MODEL_IDS` | Optional comma-separated allowlist of approved Bedrock model IDs |
+| `AZURE_ALLOWED_DEPLOYMENTS` | Optional comma-separated allowlist of approved Azure deployment names |
 | `AZURE_OPENAI_API_KEY` | Loaded from Kubernetes Secret |
 
 | Variable | Description |
@@ -108,8 +114,46 @@ The template now validates key inputs at workspace creation time to prevent brok
 - If `enable_github_connector=true`, `github_repository` must be `owner/repo` and `github_personal_access_token` must be set.
 - If `enable_jira_connector=true`, `jira_pat` must be set.
 - If `enable_confluence_connector=true`, `confluence_pat` must be set.
+- If `model_provider` is `bedrock` or `dual`, `bedrock_model_id` must be set.
 - If `model_provider` is `azure` or `dual`, `azure_openai_endpoint` and `azure_openai_deployment` must be set.
+- If `bedrock_allowed_model_ids_csv` is set, `bedrock_model_id` must be in that allowlist.
+- If `azure_allowed_deployments_csv` is set, `azure_openai_deployment` must be in that allowlist.
 - If `auth_owner_only=true`, an effective workspace owner email must exist (either entered explicitly or auto-derived from Coder).
+
+## Built-in workspace CLI
+
+The chatbot image bootstrap installs a lightweight `ai` helper for operators or anyone who execs
+into the running container. It is useful for debugging the deployed service, but it is **not**
+presented as a standalone Coder workstation app by this template.
+
+Examples:
+
+- `ai health`
+- `ai providers`
+- `ai chat "Summarize the active connector targets"`
+- `ai chat "Use Azure for this answer" --provider azure`
+
+By default, `ai` uses `http://127.0.0.1:8080`. Override with `CHATBOT_BASE_URL` when the chatbot is exposed elsewhere.
+
+## What users see in Coder
+
+After workspace creation, users are presented with service-oriented access details rather than
+workstation apps.
+
+Primary user-facing entrypoints:
+
+- `Chatbot Web UI` — browser access to the provisioned chatbot service
+- `Workspace Info` — metadata such as owner, namespace, provider, and enabled connectors
+- `Chatbot Access Status` — service type, access URL, and provisioning/ready status
+
+Not included in this template:
+
+- Web Terminal
+- VS Code / code-server
+- Remote desktop
+
+The primary browser URL is surfaced in template outputs and metadata as `chatbot_access_url` once
+the Kubernetes LoadBalancer has been assigned a hostname or IP.
 
 ## Minimal operator inputs (recommended)
 

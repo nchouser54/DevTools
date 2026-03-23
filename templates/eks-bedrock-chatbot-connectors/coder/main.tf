@@ -55,6 +55,12 @@ variable "bedrock_model_id" {
   default     = "replace-with-govcloud-sonnet-4.5-model-id"
 }
 
+variable "bedrock_allowed_model_ids_csv" {
+  type        = string
+  description = "Optional comma-separated allowlist of Bedrock model IDs. Leave empty to allow any model ID."
+  default     = ""
+}
+
 variable "model_provider" {
   type        = string
   description = "AI provider mode: bedrock, azure, or dual (both available; request can select provider)."
@@ -75,6 +81,12 @@ variable "azure_openai_endpoint" {
 variable "azure_openai_deployment" {
   type        = string
   description = "Azure OpenAI deployment name used by the chatbot when provider mode includes azure."
+  default     = ""
+}
+
+variable "azure_allowed_deployments_csv" {
+  type        = string
+  description = "Optional comma-separated allowlist of Azure OpenAI deployment names. Leave empty to allow any deployment."
   default     = ""
 }
 
@@ -308,20 +320,29 @@ data "coder_workspace_owner" "me" {
 # ---------------------------------------------------------------------------
 
 locals {
-  template_name = length(trimspace(var.workspace_name)) > 0 ? trimspace(var.workspace_name) : try(data.coder_workspace.me.name, "eks-bedrock-chatbot-connectors")
-  template_tags = ["eks", "bedrock", "azure-openai", "chatbot", "connectors", "github", "jira", "confluence"]
-  ai_provider   = lower(var.model_provider)
-  workspace_owner_effective = length(trimspace(var.workspace_owner)) > 0 ? trimspace(var.workspace_owner) : trimspace(try(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name, "workspace-owner"))
+  template_name                   = length(trimspace(var.workspace_name)) > 0 ? trimspace(var.workspace_name) : try(data.coder_workspace.me.name, "eks-bedrock-chatbot-connectors")
+  template_tags                   = ["eks", "bedrock", "azure-openai", "chatbot", "connectors", "github", "jira", "confluence"]
+  ai_provider                     = lower(var.model_provider)
+  workspace_owner_effective       = length(trimspace(var.workspace_owner)) > 0 ? trimspace(var.workspace_owner) : trimspace(try(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name, "workspace-owner"))
   workspace_owner_email_effective = length(trimspace(var.workspace_owner_email)) > 0 ? trimspace(var.workspace_owner_email) : trimspace(try(data.coder_workspace_owner.me.email, ""))
-  github_repo_scope_effective = lower(var.github_repo_scope)
-  k8s_namespace_effective = length(trimspace(var.k8s_namespace)) > 0 ? trimspace(var.k8s_namespace) : substr(regexreplace(lower(local.template_name), "[^a-z0-9-]", "-"), 0, 63)
-  jira_user_email_effective = length(trimspace(var.jira_user_email)) > 0 ? trimspace(var.jira_user_email) : local.workspace_owner_email_effective
+  github_repo_scope_effective     = lower(var.github_repo_scope)
+  k8s_namespace_effective         = length(trimspace(var.k8s_namespace)) > 0 ? trimspace(var.k8s_namespace) : substr(regexreplace(lower(local.template_name), "[^a-z0-9-]", "-"), 0, 63)
+  jira_user_email_effective       = length(trimspace(var.jira_user_email)) > 0 ? trimspace(var.jira_user_email) : local.workspace_owner_email_effective
   confluence_user_email_effective = length(trimspace(var.confluence_user_email)) > 0 ? trimspace(var.confluence_user_email) : local.workspace_owner_email_effective
   auth_allowed_emails_effective = (
     var.auth_owner_only && length(local.workspace_owner_email_effective) > 0
     ? local.workspace_owner_email_effective
     : var.auth_allowed_emails
   )
+  chatbot_loadbalancer_hostname = try(kubernetes_service.chatbot.status[0].load_balancer[0].ingress[0].hostname, "")
+  chatbot_loadbalancer_ip       = try(kubernetes_service.chatbot.status[0].load_balancer[0].ingress[0].ip, "")
+  chatbot_access_host           = length(trimspace(local.chatbot_loadbalancer_hostname)) > 0 ? trimspace(local.chatbot_loadbalancer_hostname) : trimspace(local.chatbot_loadbalancer_ip)
+  chatbot_access_url            = length(local.chatbot_access_host) > 0 ? "http://${local.chatbot_access_host}" : "pending"
+  presented_apps = [
+    "Chatbot Web UI",
+    "Workspace Info",
+    "Chatbot Access Status",
+  ]
 
   active_connectors = compact([
     var.enable_github_connector ? "github" : "",
@@ -332,6 +353,11 @@ locals {
 
 check "connector_input_requirements" {
   assert {
+    condition     = !contains(["bedrock", "dual"], lower(var.model_provider)) || length(trimspace(var.bedrock_model_id)) > 0
+    error_message = "bedrock_model_id must be set when model_provider is bedrock or dual."
+  }
+
+  assert {
     condition     = !contains(["azure", "dual"], lower(var.model_provider)) || length(trimspace(var.azure_openai_endpoint)) > 0
     error_message = "azure_openai_endpoint must be set when model_provider is azure or dual."
   }
@@ -339,6 +365,24 @@ check "connector_input_requirements" {
   assert {
     condition     = !contains(["azure", "dual"], lower(var.model_provider)) || length(trimspace(var.azure_openai_deployment)) > 0
     error_message = "azure_openai_deployment must be set when model_provider is azure or dual."
+  }
+
+  assert {
+    condition = (
+      !contains(["bedrock", "dual"], lower(var.model_provider)) ||
+      length(trimspace(var.bedrock_allowed_model_ids_csv)) == 0 ||
+      contains([for id in split(",", var.bedrock_allowed_model_ids_csv) : trimspace(id)], trimspace(var.bedrock_model_id))
+    )
+    error_message = "bedrock_model_id must be included in bedrock_allowed_model_ids_csv when the allowlist is set."
+  }
+
+  assert {
+    condition = (
+      !contains(["azure", "dual"], lower(var.model_provider)) ||
+      length(trimspace(var.azure_allowed_deployments_csv)) == 0 ||
+      contains([for id in split(",", var.azure_allowed_deployments_csv) : trimspace(id)], trimspace(var.azure_openai_deployment))
+    )
+    error_message = "azure_openai_deployment must be included in azure_allowed_deployments_csv when the allowlist is set."
   }
 
   assert {
@@ -398,28 +442,30 @@ resource "kubernetes_config_map" "chatbot_config" {
   }
 
   data = {
-    AWS_REGION               = var.aws_region
-    BEDROCK_MODEL_ID         = var.bedrock_model_id
-    MODEL_PROVIDER           = local.ai_provider
-    AZURE_OPENAI_ENDPOINT    = var.azure_openai_endpoint
-    AZURE_OPENAI_DEPLOYMENT  = var.azure_openai_deployment
-    AZURE_OPENAI_API_VERSION = var.azure_openai_api_version
-    APP_NAMESPACE            = local.k8s_namespace_effective
-    ALLOW_CONNECTOR_WRITES   = tostring(var.allow_connector_writes)
-    GITHUB_ENABLED           = tostring(var.enable_github_connector)
-    GITHUB_SERVER_URL        = var.github_server_url
-    GITHUB_REPOSITORY        = var.github_repository
-    GITHUB_BRANCH            = var.github_branch
-    GITHUB_REPO_SCOPE        = local.github_repo_scope_effective
+    AWS_REGION                  = var.aws_region
+    BEDROCK_MODEL_ID            = var.bedrock_model_id
+    BEDROCK_ALLOWED_MODEL_IDS   = var.bedrock_allowed_model_ids_csv
+    MODEL_PROVIDER              = local.ai_provider
+    AZURE_OPENAI_ENDPOINT       = var.azure_openai_endpoint
+    AZURE_OPENAI_DEPLOYMENT     = var.azure_openai_deployment
+    AZURE_ALLOWED_DEPLOYMENTS   = var.azure_allowed_deployments_csv
+    AZURE_OPENAI_API_VERSION    = var.azure_openai_api_version
+    APP_NAMESPACE               = local.k8s_namespace_effective
+    ALLOW_CONNECTOR_WRITES      = tostring(var.allow_connector_writes)
+    GITHUB_ENABLED              = tostring(var.enable_github_connector)
+    GITHUB_SERVER_URL           = var.github_server_url
+    GITHUB_REPOSITORY           = var.github_repository
+    GITHUB_BRANCH               = var.github_branch
+    GITHUB_REPO_SCOPE           = local.github_repo_scope_effective
     GITHUB_ALLOWED_REPOSITORIES = var.github_allowed_repositories_csv
-    JIRA_ENABLED             = tostring(var.enable_jira_connector)
-    JIRA_SERVER_URL          = var.jira_server_url
-    JIRA_PROJECT_KEY         = var.jira_project_key
-    JIRA_USER_EMAIL          = local.jira_user_email_effective
-    CONFLUENCE_ENABLED       = tostring(var.enable_confluence_connector)
-    CONFLUENCE_SERVER_URL    = var.confluence_server_url
-    CONFLUENCE_SPACE_KEY     = var.confluence_space_key
-    CONFLUENCE_USER_EMAIL    = local.confluence_user_email_effective
+    JIRA_ENABLED                = tostring(var.enable_jira_connector)
+    JIRA_SERVER_URL             = var.jira_server_url
+    JIRA_PROJECT_KEY            = var.jira_project_key
+    JIRA_USER_EMAIL             = local.jira_user_email_effective
+    CONFLUENCE_ENABLED          = tostring(var.enable_confluence_connector)
+    CONFLUENCE_SERVER_URL       = var.confluence_server_url
+    CONFLUENCE_SPACE_KEY        = var.confluence_space_key
+    CONFLUENCE_USER_EMAIL       = local.confluence_user_email_effective
   }
 }
 
@@ -682,24 +728,26 @@ resource "kubernetes_service" "chatbot" {
 
 output "template_summary" {
   value = {
-    name              = local.template_name
-    owner             = local.workspace_owner_effective
-    owner_email       = local.workspace_owner_email_effective
-    tags              = local.template_tags
-    eks_cluster       = var.eks_cluster_name
-    k8s_namespace     = kubernetes_namespace.chatbot.metadata[0].name
-    bedrock_model_id  = var.bedrock_model_id
-    ai_provider       = local.ai_provider
-    azure_endpoint    = var.azure_openai_endpoint
-    azure_deployment  = var.azure_openai_deployment
-    aws_region        = var.aws_region
-    helm_release      = helm_release.chatbot.name
-    active_connectors = local.active_connectors
+    name                   = local.template_name
+    owner                  = local.workspace_owner_effective
+    owner_email            = local.workspace_owner_email_effective
+    tags                   = local.template_tags
+    eks_cluster            = var.eks_cluster_name
+    k8s_namespace          = kubernetes_namespace.chatbot.metadata[0].name
+    bedrock_model_id       = var.bedrock_model_id
+    ai_provider            = local.ai_provider
+    azure_endpoint         = var.azure_openai_endpoint
+    azure_deployment       = var.azure_openai_deployment
+    aws_region             = var.aws_region
+    helm_release           = helm_release.chatbot.name
+    active_connectors      = local.active_connectors
     allow_connector_writes = var.allow_connector_writes
-    auth_required     = var.enable_request_auth
-    auth_owner_only   = var.auth_owner_only
-    auth_allowed_emails = local.auth_allowed_emails_effective
-    chatbot_service   = kubernetes_service.chatbot.metadata[0].name
+    auth_required          = var.enable_request_auth
+    auth_owner_only        = var.auth_owner_only
+    auth_allowed_emails    = local.auth_allowed_emails_effective
+    presented_apps         = local.presented_apps
+    chatbot_access_url     = local.chatbot_access_url
+    chatbot_service        = kubernetes_service.chatbot.metadata[0].name
     github_target = {
       server     = var.github_server_url
       repository = var.github_repository
@@ -739,6 +787,11 @@ output "chatbot_loadbalancer_hostname" {
 output "chatbot_loadbalancer_ip" {
   value       = try(kubernetes_service.chatbot.status[0].load_balancer[0].ingress[0].ip, "pending")
   description = "LoadBalancer IP address for accessing the chatbot. May show 'pending' if still provisioning."
+}
+
+output "chatbot_access_url" {
+  value       = local.chatbot_access_url
+  description = "Primary browser URL for the chatbot UI. Shows 'pending' until the LoadBalancer address is assigned."
 }
 
 output "active_connectors_list" {
@@ -788,6 +841,16 @@ resource "coder_metadata" "workspace_info" {
   item {
     key   = "ai_provider"
     value = local.ai_provider
+  }
+
+  item {
+    key   = "workspace_type"
+    value = "service"
+  }
+
+  item {
+    key   = "presented_apps"
+    value = join(", ", local.presented_apps)
   }
 
   item {
@@ -841,6 +904,31 @@ resource "coder_metadata" "chatbot_access" {
   item {
     key   = "service_type"
     value = kubernetes_service.chatbot.spec[0].type
+  }
+
+  item {
+    key   = "access_mode"
+    value = "browser"
+  }
+
+  item {
+    key   = "primary_entrypoint"
+    value = "Chatbot Web UI"
+  }
+
+  item {
+    key   = "access_url"
+    value = local.chatbot_access_url
+  }
+
+  item {
+    key   = "interactive_terminal"
+    value = "not included"
+  }
+
+  item {
+    key   = "remote_desktop"
+    value = "not included"
   }
 
   item {
