@@ -5,6 +5,7 @@ This template provides an operator-focused Coder workspace for day-2 Kubernetes 
 ## What it includes
 
 - `kubectl` and AWS CLI preinstalled in the workspace image
+- optional Helm install (`enable_helm=true`) with configurable `helm_version`
 - helper scripts for EKS kubeconfig setup and quick cluster checks
 - contract-compliant Coder template metadata (`coder/main.tf`)
 - example MCP config and environment placeholders (no live secrets)
@@ -28,6 +29,8 @@ See `.env.example`. At minimum, review:
 - `EKS_CLUSTER_NAME`
 - `DEFAULT_KUBE_NAMESPACE`
 - `AUTO_CONFIGURE_KUBECONFIG`
+- `ENABLE_HELM`
+- `HELM_VERSION`
 
 ## Authentication and authorization model
 
@@ -45,10 +48,25 @@ Being in the cluster does **not** automatically grant broad Kubernetes privilege
 2. Run `kctx-check` to confirm auth and API access.
 3. Use standard `kubectl` commands for namespace-scoped or cluster-scoped operations.
 
+If Helm is enabled for the template image, run standard Helm workflows:
+
+4. `helm version`
+5. `helm repo add` / `helm repo update`
+6. `helm upgrade --install ...`
+
 ## Included helper commands
 
 - `eks-login` — configures kubeconfig for `${EKS_CLUSTER_NAME}` in `${AWS_REGION}`
 - `kctx-check` — shows current context, nodes, and namespace health snapshot
+
+## Helm option
+
+Helm is controlled by template inputs:
+
+- `enable_helm` (default: `false`)
+- `helm_version` (default: `v3.16.2`)
+
+When enabled, the workspace image bootstrap installs Helm from `get.helm.sh`.
 
 ## RBAC starter profiles
 

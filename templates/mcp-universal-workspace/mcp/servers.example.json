@@ -1,0 +1,55 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "${MCP_ALLOWED_ROOT}"
+      ]
+    },
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${MCP_GITHUB_TOKEN}",
+        "GITHUB_SERVER_URL": "${MCP_GITHUB_SERVER_URL}",
+        "GITHUB_REPOSITORY": "${MCP_GITHUB_REPOSITORY}",
+        "GITHUB_BRANCH": "${MCP_GITHUB_BRANCH}"
+      }
+    },
+    "jira": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "${MCP_JIRA_SERVER_URL}"
+      ],
+      "env": {
+        "AUTHORIZATION": "Bearer ${MCP_JIRA_TOKEN}",
+        "JIRA_PROJECT_KEY": "${MCP_JIRA_PROJECT_KEY}",
+        "JIRA_USER_EMAIL": "${MCP_JIRA_USER_EMAIL}"
+      }
+    },
+    "confluence": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "${MCP_CONFLUENCE_SERVER_URL}"
+      ],
+      "env": {
+        "AUTHORIZATION": "Bearer ${MCP_CONFLUENCE_TOKEN}",
+        "CONFLUENCE_SPACE_KEY": "${MCP_CONFLUENCE_SPACE_KEY}",
+        "CONFLUENCE_USER_EMAIL": "${MCP_CONFLUENCE_USER_EMAIL}"
+      }
+    },
+    "custom-script-example": {
+      "command": "/opt/mcp/my-server.sh",
+      "args": []
+    }
+  }
+}

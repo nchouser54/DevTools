@@ -1,0 +1,63 @@
+{
+  "name": "EKS EC2 Existing Instance Workspace",
+  "slug": "eks-ec2-existing-workspace",
+  "description": "Connect a Coder workspace to an already-running EC2 instance (Linux or Windows) in AWS GovCloud via SSM Run Command. No open inbound ports or SSH keys required. The Coder agent is delivered to the target instance through SSM and phones home to the Coder server over outbound HTTPS.",
+  "owner": "Rocket City Defense Solutions LLC",
+  "version": "0.1.0",
+  "inputProfile": {
+    "mode": "minimal-first",
+    "minimalRequired": [
+      "EC2_INSTANCE_ID",
+      "OS_TYPE"
+    ],
+    "autoDerived": [
+      "WORKSPACE_OWNER"
+    ],
+    "advancedOptional": [
+      "ARCH",
+      "AWS_REGION",
+      "CODER_WORKDIR",
+      "CODER_USER",
+      "ENABLE_XRDP",
+      "XRDP_PORT",
+      "ENABLE_MCP_FILESYSTEM",
+      "ENABLE_MCP_GITHUB",
+      "MCP_GITHUB_TOKEN"
+    ]
+  },
+  "runtime": {
+    "language": "shell",
+    "version": "latest",
+    "baseImage": "n/a — runs on target EC2 instance"
+  },
+  "platform": {
+    "target": "amazon-ec2",
+    "delivery": "ssm-run-command",
+    "irsaRequired": true,
+    "partition": "aws-us-gov",
+    "ssmVpcEndpointRequired": "when-no-igw"
+  },
+  "aws": {
+    "services": ["ec2", "ssm", "iam"],
+    "region": "us-gov-west-1",
+    "govcloud": true
+  },
+  "mcp": {
+    "mode": "templated-json",
+    "configPath": "mcp/servers.example.json",
+    "notes": "MCP servers are registered inside the Coder agent startup script. The agent runs directly on the EC2 instance."
+  },
+  "tags": [
+    "coder",
+    "ec2",
+    "aws",
+    "govcloud",
+    "eks",
+    "ssm",
+    "ssh",
+    "rdp",
+    "windows",
+    "linux",
+    "existing-instance"
+  ]
+}

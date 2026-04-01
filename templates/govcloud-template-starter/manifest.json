@@ -1,0 +1,54 @@
+{
+  "name": "GovCloud Template Starter",
+  "slug": "govcloud-template-starter",
+  "description": "Starter Coder template for AWS GovCloud imports with a consistent variable contract, optional helm/xrdp toggles, and MCP placeholders for rapid team onboarding.",
+  "owner": "Rocket City Defense Solutions LLC",
+  "version": "0.1.0",
+  "inputProfile": {
+    "mode": "minimal-first",
+    "minimalRequired": [
+      "AWS_REGION",
+      "WORKSPACE_OWNER"
+    ],
+    "autoDerived": [
+      "WORKSPACE_NAME"
+    ],
+    "advancedOptional": [
+      "DEFAULT_KUBE_NAMESPACE",
+      "AUTO_CONFIGURE_KUBECONFIG",
+      "ENABLE_HELM",
+      "HELM_VERSION",
+      "ENABLE_XRDP",
+      "XRDP_PORT",
+      "ENABLE_MCP_GITHUB",
+      "MCP_GITHUB_TOKEN",
+      "HTTPS_PROXY",
+      "HTTP_PROXY",
+      "NO_PROXY"
+    ]
+  },
+  "runtime": {
+    "language": "bash",
+    "version": "latest",
+    "baseImage": "mcr.microsoft.com/devcontainers/base:bookworm"
+  },
+  "platform": {
+    "target": "aws-govcloud",
+    "partition": "aws-us-gov",
+    "notes": "Starter profile for easy import and customization into GovCloud-ready templates."
+  },
+  "mcp": {
+    "mode": "preconfigured-examples",
+    "configPath": "mcp/servers.example.json",
+    "notes": "Example-only MCP definitions. Operators must review and adapt to their environment."
+  },
+  "tags": [
+    "coder",
+    "workspace",
+    "govcloud",
+    "aws",
+    "aws-us-gov",
+    "starter",
+    "mcp"
+  ]
+}

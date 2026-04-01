@@ -1,0 +1,64 @@
+{
+  "name": "Universal MCP Workspace",
+  "slug": "mcp-universal-workspace",
+  "description": "Universal Coder workspace template with automatic Jira, Confluence, GitHub, Filesystem, and custom-script MCP installation. A multi-distro node/npm bootstrap (apt → apk → yum/dnf → nvm → binary fallback) ensures MCP servers install and run regardless of the base container image chosen.",
+  "owner": "Rocket City Defense Solutions LLC",
+  "version": "0.1.0",
+  "inputProfile": {
+    "mode": "minimal-first",
+    "minimalRequired": [
+      "CONTAINER_IMAGE",
+      "WORKDIR"
+    ],
+    "autoDerived": [
+      "WORKSPACE_OWNER"
+    ],
+    "advancedOptional": [
+      "CLAUDE_API_KEY",
+      "CLAUDE_CODE_OAUTH_TOKEN",
+      "CLAUDE_MODEL",
+      "ENABLE_BEDROCK",
+      "AWS_REGION",
+      "AWS_BEARER_TOKEN_BEDROCK",
+      "GIT_REPO_URL",
+      "VSCODE_EXTENSIONS_CSV",
+      "ENABLE_CODE_SERVER",
+      "ENABLE_MCP_GITHUB",
+      "MCP_GITHUB_TOKEN",
+      "ENABLE_MCP_JIRA",
+      "MCP_JIRA_TOKEN",
+      "ENABLE_MCP_CONFLUENCE",
+      "MCP_CONFLUENCE_TOKEN",
+      "MCP_CUSTOM_SCRIPTS_CSV",
+      "MCP_REMOTE_CONFIG_URLS_CSV",
+      "HTTPS_PROXY",
+      "HTTP_PROXY",
+      "NO_PROXY"
+    ]
+  },
+  "runtime": {
+    "language": "shell",
+    "version": "latest",
+    "baseImage": "codercom/example-universal:ubuntu"
+  },
+  "mcp": {
+    "mode": "templated-json",
+    "configPath": "mcp/servers.example.json",
+    "notes": "Filesystem MCP is enabled by default. GitHub, Jira, and Confluence MCP are enabled via template variables and require the corresponding token/URL inputs. Custom shell script MCP servers can be registered via mcp_custom_scripts_csv. The startup script performs a multi-distro node/npm bootstrap so MCP packages install on any container image."
+  },
+  "tags": [
+    "coder",
+    "claude",
+    "claude-code",
+    "workspace",
+    "docker",
+    "mcp",
+    "jira",
+    "confluence",
+    "github",
+    "universal",
+    "enterprise",
+    "bedrock",
+    "vscode"
+  ]
+}

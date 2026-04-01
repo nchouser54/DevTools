@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "${MCP_ALLOWED_ROOT}"
+      ]
+    },
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${MCP_GITHUB_TOKEN}",
+        "GITHUB_SERVER_URL": "${MCP_GITHUB_SERVER_URL}",
+        "GITHUB_REPOSITORY": "${MCP_GITHUB_REPOSITORY}",
+        "GITHUB_BRANCH": "${MCP_GITHUB_BRANCH}"
+      }
+    }
+  }
+}

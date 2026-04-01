@@ -1,0 +1,74 @@
+{
+  "name": "EKS EC2 AMI Workspace",
+  "slug": "eks-ec2-ami-workspace",
+  "description": "Launch a fresh EC2 instance from any AMI in AWS GovCloud as a Coder workspace. The Coder agent is injected via EC2 user-data. A persistent EBS home volume survives workspace stop/start cycles — the EC2 instance is terminated on stop and recreated from the same AMI on start, while /home/coder data is preserved. Supports Linux (SSH) and Windows (RDP).",
+  "owner": "Rocket City Defense Solutions LLC",
+  "version": "0.1.0",
+  "inputProfile": {
+    "mode": "minimal-first",
+    "minimalRequired": [
+      "AMI_ID",
+      "SUBNET_ID",
+      "INSTANCE_TYPE"
+    ],
+    "autoDerived": [
+      "WORKSPACE_OWNER"
+    ],
+    "advancedOptional": [
+      "OS_TYPE",
+      "AWS_REGION",
+      "VPC_ID",
+      "KEY_NAME",
+      "HOME_VOLUME_SIZE_GB",
+      "ROOT_VOLUME_SIZE_GB",
+      "INSTANCE_PROFILE_NAME",
+      "ASSOCIATE_PUBLIC_IP",
+      "USER_DATA_EXTRA",
+      "ENABLE_XRDP",
+      "XRDP_PORT",
+      "ENABLE_MCP_FILESYSTEM",
+      "ENABLE_MCP_GITHUB",
+      "MCP_GITHUB_TOKEN",
+      "HTTPS_PROXY",
+      "HTTP_PROXY",
+      "NO_PROXY"
+    ]
+  },
+  "runtime": {
+    "language": "shell",
+    "version": "latest",
+    "baseImage": "operator-provided AMI"
+  },
+  "platform": {
+    "target": "amazon-ec2",
+    "delivery": "ec2-user-data",
+    "irsaRequired": true,
+    "partition": "aws-us-gov",
+    "persistentStorage": "ebs-home-volume"
+  },
+  "aws": {
+    "services": ["ec2", "ebs", "iam"],
+    "region": "us-gov-west-1",
+    "govcloud": true
+  },
+  "mcp": {
+    "mode": "templated-json",
+    "configPath": "mcp/servers.example.json",
+    "notes": "MCP servers are registered through the Coder agent startup_script running on the EC2 instance."
+  },
+  "tags": [
+    "coder",
+    "ec2",
+    "ami",
+    "aws",
+    "govcloud",
+    "eks",
+    "user-data",
+    "ebs",
+    "persistent",
+    "ssh",
+    "rdp",
+    "windows",
+    "linux"
+  ]
+}

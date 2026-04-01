@@ -1,9 +1,25 @@
 {
   "name": "EKS kubectl Workspace",
   "slug": "eks-kubectl-workspace",
-  "description": "Coder workspace template for kubectl operations against Amazon EKS with awscli + kubeconfig helper workflow.",
+  "description": "Coder workspace template for kubectl operations against Amazon EKS with awscli + kubeconfig helper workflow and optional Helm support.",
   "owner": "Rocket City Defense Solutions LLC",
   "version": "0.1.0",
+  "inputProfile": {
+    "mode": "minimal-first",
+    "minimalRequired": [
+      "AWS_REGION",
+      "EKS_CLUSTER_NAME"
+    ],
+    "autoDerived": [
+      "WORKSPACE_OWNER"
+    ],
+    "advancedOptional": [
+      "DEFAULT_KUBE_NAMESPACE",
+      "AUTO_CONFIGURE_KUBECONFIG",
+      "ENABLE_HELM",
+      "HELM_VERSION"
+    ]
+  },
   "runtime": {
     "language": "bash",
     "version": "latest",
@@ -19,6 +35,7 @@
     "eks",
     "kubernetes",
     "kubectl",
+    "helm",
     "aws",
     "operations",
     "workspace"

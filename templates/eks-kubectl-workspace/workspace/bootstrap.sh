@@ -10,6 +10,8 @@ esac
 
 KUBECTL_VERSION="v1.31.2"
 AWSCLI_VERSION="2.17.50"
+ENABLE_HELM="${ENABLE_HELM:-false}"
+HELM_VERSION="${HELM_VERSION:-v3.16.2}"
 
 curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${BIN_ARCH}/kubectl" -o /usr/local/bin/kubectl
 chmod +x /usr/local/bin/kubectl
@@ -18,6 +20,15 @@ curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-${BIN_ARCH}-${AWSCLI_V
 unzip -q /tmp/awscliv2.zip -d /tmp
 /tmp/aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
 rm -rf /tmp/aws /tmp/awscliv2.zip
+
+if [[ "$ENABLE_HELM" == "true" ]]; then
+  HELM_ARCH="${BIN_ARCH}"
+  curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-${HELM_ARCH}.tar.gz" -o /tmp/helm.tgz
+  tar -xzf /tmp/helm.tgz -C /tmp
+  mv "/tmp/linux-${HELM_ARCH}/helm" /usr/local/bin/helm
+  chmod +x /usr/local/bin/helm
+  rm -rf /tmp/helm.tgz "/tmp/linux-${HELM_ARCH}"
+fi
 
 cat >/usr/local/bin/eks-login <<'EOF'
 #!/usr/bin/env bash
@@ -59,4 +70,8 @@ alias k=kubectl
 complete -o default -F __start_kubectl k
 EOF
 
-echo "Installed kubectl, aws, and helper commands: eks-login, kctx-check"
+if [[ "$ENABLE_HELM" == "true" ]]; then
+  echo "Installed kubectl, aws, helm, and helper commands: eks-login, kctx-check"
+else
+  echo "Installed kubectl, aws, and helper commands: eks-login, kctx-check"
+fi

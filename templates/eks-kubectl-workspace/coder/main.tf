@@ -38,9 +38,28 @@ variable "auto_configure_kubeconfig" {
   default     = true
 }
 
+variable "enable_helm" {
+  type        = bool
+  description = "Whether Helm should be installed in the workspace image during bootstrap."
+  default     = false
+}
+
+variable "helm_version" {
+  type        = string
+  description = "Helm version to install when enable_helm is true. Example: v3.16.2"
+  default     = "v3.16.2"
+}
+
 locals {
   template_name = var.workspace_name
-  template_tags = ["eks", "kubectl", "kubernetes", "aws", "operations"]
+  template_tags = compact([
+    "eks",
+    "kubectl",
+    "kubernetes",
+    "aws",
+    "operations",
+    var.enable_helm ? "helm" : ""
+  ])
 }
 
 output "template_summary" {
@@ -52,6 +71,10 @@ output "template_summary" {
     eks_cluster     = var.eks_cluster_name
     kube_namespace  = var.default_kube_namespace
     auto_kubeconfig = var.auto_configure_kubeconfig
+    helm = {
+      enabled = var.enable_helm
+      version = var.helm_version
+    }
     startup_env = {
       WORKSPACE_NAME           = var.workspace_name
       WORKSPACE_OWNER          = var.workspace_owner
@@ -59,6 +82,8 @@ output "template_summary" {
       EKS_CLUSTER_NAME         = var.eks_cluster_name
       DEFAULT_KUBE_NAMESPACE   = var.default_kube_namespace
       AUTO_CONFIGURE_KUBECONFIG = tostring(var.auto_configure_kubeconfig)
+      ENABLE_HELM              = tostring(var.enable_helm)
+      HELM_VERSION             = var.helm_version
     }
     helper_commands = [
       "eks-login",

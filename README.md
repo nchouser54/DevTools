@@ -71,14 +71,17 @@ It is designed to establish the golden path for future templates by defining:
 This repository now includes lightweight accelerators for quickly creating and evaluating new template concepts:
 
 - `scripts/scaffold_template.py` — generates a contract-compliant template skeleton under `templates/<slug>/`
+- `scripts/scaffold_template.py --profile govcloud` — generates a GovCloud-oriented starter contract with consistent import variables
 - `docs/template-idea-backlog.md` — curated backlog of candidate Coder templates to build next
 - `docs/coder-task-templates.md` — reusable implementation/checklist task templates for contributors
+- `templates/govcloud-template-starter/` — copy-ready baseline template for fast GovCloud imports
 
 ## Getting started
 
 Start with these docs:
 
 - `docs/architecture.md`
+- `docs/coder-developer-catalog.md`
 - `docs/template-contract.md`
 - `docs/templates/python-ai-workspace.md`
 - `docs/coder-copy-paste-runbook.md`
@@ -92,5 +95,6 @@ Then run the validation script once templates are present:
 To scaffold a brand new template quickly:
 
 - `scripts/scaffold_template.py --name <NAME> --slug <SLUG> --description <DESC>`
+- `scripts/scaffold_template.py --profile govcloud --name <NAME> --slug <SLUG> --description <DESC>`
 
 This repository now ships multiple reference templates (Python AI workspace + EKS-focused templates) and validation tooling to keep future templates aligned.
