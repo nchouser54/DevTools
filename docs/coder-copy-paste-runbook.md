@@ -187,6 +187,39 @@ kubectl -n <namespace> get configmap chatbot-config -o yaml
 
 ---
 
+## 10) Fix: `Unable to query /opt/terraform/plugins`
+
+If template import/apply fails with this error, the problem is usually in the **Coder provisioner runtime** (Terraform plugin cache/mirror config), not in template code.
+
+Use a writable plugin cache path and avoid `/opt/terraform/plugins` unless you intentionally mount it.
+
+### Helm values patch (copy/paste-safe)
+
+```yaml
+coder:
+  provisioner:
+    extraEnv:
+      - name: TF_PLUGIN_CACHE_DIR
+        value: /home/coder/.terraform.d/plugin-cache
+```
+
+If your deployment supports extra volume mounts for the provisioner, also ensure this directory exists and is writable by the provisioner user.
+
+### Optional Terraform CLI config (if using `TF_CLI_CONFIG_FILE`)
+
+```hcl
+plugin_cache_dir = "/home/coder/.terraform.d/plugin-cache"
+```
+
+### Verification checklist
+
+1. Restart/redeploy Coder provisioners.
+2. Confirm provisioner env includes `TF_PLUGIN_CACHE_DIR=/home/coder/.terraform.d/plugin-cache`.
+3. Re-run template import/start.
+4. If error persists, check for a stale `.terraformrc` or `TF_CLI_CONFIG_FILE` still pointing to `/opt/terraform/plugins`.
+
+---
+
 ## Related docs
 
 - `docs/coder-ui-field-paste-sheets.md`
