@@ -157,15 +157,14 @@ locals {
   # Target instance AZ (needed for metadata only)
   instance_az = data.aws_instance.target.availability_zone
 
-  # Wrap the Coder init_script to handle Linux coder-user switching if requested.
-  # On Windows the init_script is already PowerShell-ready.
-  linux_bootstrap = trimspace(var.coder_user) != "" ? <<-BASH
+  # Wrap the Coder init_script to handle Linux coder-user switching when requested.
+  # This is kept as a plain heredoc to avoid parser edge-cases with heredoc ternaries.
+  linux_bootstrap = <<-BASH
     #!/usr/bin/env bash
     set -euo pipefail
     id '${var.coder_user}' >/dev/null 2>&1 || useradd -m -s /bin/bash '${var.coder_user}'
     su '${var.coder_user}' -lc '${coder_agent.main.init_script}'
   BASH
-  : coder_agent.main.init_script
 
   # Use the raw init_script for both paths (su wrapper only if coder_user is set for Linux)
   linux_init_script   = trimspace(var.coder_user) != "" ? local.linux_bootstrap : coder_agent.main.init_script
