@@ -78,6 +78,26 @@ variable "xrdp_port" {
   default     = 3389
 }
 
+# ── Enterprise Network Proxy ──────────────────────────────────────────────────
+
+variable "https_proxy" {
+  type        = string
+  description = "Optional HTTPS proxy URL for isolated VPCs."
+  default     = ""
+}
+
+variable "http_proxy" {
+  type        = string
+  description = "Optional HTTP proxy URL."
+  default     = ""
+}
+
+variable "no_proxy" {
+  type        = string
+  description = "Comma-separated NO_PROXY hosts / CIDRs to bypass the proxy."
+  default     = "169.254.169.254,169.254.170.2,localhost,127.0.0.1"
+}
+
 # ── MCP variables ─────────────────────────────────────────────────────────────
 
 variable "enable_mcp_filesystem" {
@@ -169,6 +189,21 @@ locals {
   # Use the raw init_script for both paths (su wrapper only if coder_user is set for Linux)
   linux_init_script   = trimspace(var.coder_user) != "" ? local.linux_bootstrap : coder_agent.main.init_script
   windows_init_script = coder_agent.main.init_script
+
+  linux_proxy_exports = compact([
+    length(trimspace(var.https_proxy)) > 0 ? "export HTTPS_PROXY='${var.https_proxy}'" : "",
+    length(trimspace(var.https_proxy)) > 0 ? "export https_proxy='${var.https_proxy}'" : "",
+    length(trimspace(var.http_proxy)) > 0 ? "export HTTP_PROXY='${var.http_proxy}'" : "",
+    length(trimspace(var.http_proxy)) > 0 ? "export http_proxy='${var.http_proxy}'" : "",
+    length(trimspace(var.no_proxy)) > 0 ? "export NO_PROXY='${var.no_proxy}'" : "",
+    length(trimspace(var.no_proxy)) > 0 ? "export no_proxy='${var.no_proxy}'" : "",
+  ])
+
+  windows_proxy_exports = compact([
+    length(trimspace(var.https_proxy)) > 0 ? "$env:HTTPS_PROXY = \"${var.https_proxy}\"" : "",
+    length(trimspace(var.http_proxy)) > 0 ? "$env:HTTP_PROXY = \"${var.http_proxy}\"" : "",
+    length(trimspace(var.no_proxy)) > 0 ? "$env:NO_PROXY = \"${var.no_proxy}\"" : "",
+  ])
 }
 
 # ── Coder Agent ───────────────────────────────────────────────────────────────
@@ -195,6 +230,12 @@ resource "coder_agent" "main" {
     GIT_COMMITTER_NAME  = local.workspace_owner
     GIT_COMMITTER_EMAIL = try(data.coder_workspace_owner.me.email, "")
     CODER_WORKDIR       = local.workdir_effective
+    HTTPS_PROXY         = var.https_proxy
+    HTTP_PROXY          = var.http_proxy
+    NO_PROXY            = var.no_proxy
+    https_proxy         = var.https_proxy
+    http_proxy          = var.http_proxy
+    no_proxy            = var.no_proxy
     ENABLE_XRDP         = tostring(var.enable_xrdp)
     XRDP_PORT           = tostring(var.xrdp_port)
   }
@@ -205,6 +246,20 @@ resource "coder_agent" "main" {
   startup_script = local.is_windows ? "" : <<-EOT
     #!/usr/bin/env bash
     export PATH="$HOME/.local/bin:$PATH"
+
+    # Proxy settings for package/tool downloads in startup logic
+    %{if length(trimspace(var.https_proxy)) > 0}
+    export HTTPS_PROXY="${var.https_proxy}"
+    export https_proxy="${var.https_proxy}"
+    %{endif}
+    %{if length(trimspace(var.http_proxy)) > 0}
+    export HTTP_PROXY="${var.http_proxy}"
+    export http_proxy="${var.http_proxy}"
+    %{endif}
+    %{if length(trimspace(var.no_proxy)) > 0}
+    export NO_PROXY="${var.no_proxy}"
+    export no_proxy="${var.no_proxy}"
+    %{endif}
 
     _log()  { echo "[coder-mcp] $*"; }
     _warn() { echo "[coder-mcp][WARN] $*" >&2; }
@@ -328,7 +383,7 @@ resource "aws_ssm_document" "coder_agent_init" {
         action = "aws:runPowerShellScript"
         name   = "runCoderAgentWindows"
         inputs = {
-          runCommand       = split("\n", local.windows_init_script)
+          runCommand       = concat(local.windows_proxy_exports, split("\n", local.windows_init_script))
           timeoutSeconds   = tostring(var.ssm_execution_timeout_seconds)
           workingDirectory = local.workdir_effective
         }
@@ -337,7 +392,7 @@ resource "aws_ssm_document" "coder_agent_init" {
         action = "aws:runShellScript"
         name   = "runCoderAgentLinux"
         inputs = {
-          runCommand       = split("\n", local.linux_init_script)
+          runCommand       = concat(local.linux_proxy_exports, split("\n", local.linux_init_script))
           timeoutSeconds   = tostring(var.ssm_execution_timeout_seconds)
           workingDirectory = "/tmp"
         }

@@ -66,6 +66,8 @@ See `docs/iam-policies/eks-ec2-ami-workspace-irsa-policy.json` for the full IAM 
 | `home_device_name` | `/dev/xvdh` | Linux device name for home EBS attachment |
 | `user_data_extra` | `""` | Extra bash commands to run before the Coder agent starts |
 | `https_proxy` | `""` | HTTPS proxy for isolated VPCs |
+| `http_proxy` | `""` | HTTP proxy for isolated VPCs |
+| `no_proxy` | `169.254.169.254,169.254.170.2,localhost,127.0.0.1` | Comma-separated proxy bypass list |
 | `enable_xrdp` | `false` | Linux only: install/configure XRDP for desktop access over Coder port-forward |
 | `xrdp_port` | `3389` | Linux XRDP listen port |
 

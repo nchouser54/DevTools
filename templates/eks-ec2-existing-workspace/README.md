@@ -86,12 +86,20 @@ chmod +x workspace/bootstrap.sh
 | `coder_workdir` | auto | Working dir on instance (`/home/coder` or `C:\Users\coder`) |
 | `coder_user` | `""` | Linux: OS user to run the agent as (blank = ssm-user/root) |
 | `ssm_execution_timeout_seconds` | `3600` | SSM Run Command timeout |
+| `https_proxy` | `""` | Optional HTTPS proxy URL for isolated VPCs |
+| `http_proxy` | `""` | Optional HTTP proxy URL |
+| `no_proxy` | `169.254.169.254,169.254.170.2,localhost,127.0.0.1` | Comma-separated proxy bypass list |
 | `enable_xrdp` | `false` | Linux only: install/configure XRDP for desktop access over Coder port-forward |
 | `xrdp_port` | `3389` | Linux XRDP listen port |
 | `enable_mcp_filesystem` | `true` | Register filesystem MCP for Claude Code |
 | `mcp_allowed_root` | `/home/coder/project` | Filesystem root for MCP |
 | `enable_mcp_github` | `false` | Register GitHub MCP |
 | `mcp_github_token` | `""` | GitHub PAT (sensitive) |
+
+## Proxy behavior (important)
+
+- Template proxy vars (`https_proxy`, `http_proxy`, `no_proxy`) are applied on the target EC2 and in the Coder agent runtime for package/tool downloads.
+- Terraform module/provider downloads happen in the Coder provisioner pod, so set provisioner proxy env vars there as well when needed (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`, and optionally `TF_HTTP_PROXY`, `TF_HTTPS_PROXY`, `TF_NO_PROXY`).
 
 ## Workspace lifecycle
 
