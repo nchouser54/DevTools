@@ -60,9 +60,9 @@ if [[ "$ENABLE_EFS_CACHE" == "true" ]]; then
   for i in {1..30}; do
     if mount -t nfs4 \
         -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport \
-        "${EFS_DNS_NAME}:/" "$MODEL_CACHE_MOUNT"; then
+        "$EFS_DNS_NAME:/" "$MODEL_CACHE_MOUNT"; then
       echo "[$(date)] ==> EFS mount successful"
-      echo "${EFS_DNS_NAME}:/ $MODEL_CACHE_MOUNT nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport,_netdev 0 0" | tee -a /etc/fstab > /dev/null
+      echo "$EFS_DNS_NAME:/ $MODEL_CACHE_MOUNT nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport,_netdev 0 0" | tee -a /etc/fstab > /dev/null
       MOUNTED=true
       break
     fi
@@ -146,7 +146,7 @@ app = flask.Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
 OLLAMA_URL = "http://localhost:11434"
-MODEL = "${MODEL_ID}"
+MODEL = "${model_id}"
 
 @app.route("/health", methods=["GET"])
 def health():

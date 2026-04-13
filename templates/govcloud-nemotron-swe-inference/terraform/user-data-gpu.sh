@@ -70,9 +70,9 @@ if [[ "$ENABLE_EFS_CACHE" == "true" ]]; then
   for i in {1..30}; do
     if mount -t nfs4 \
         -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport \
-        "${EFS_DNS_NAME}:/" "$MODEL_CACHE_MOUNT"; then
+        "$EFS_DNS_NAME:/" "$MODEL_CACHE_MOUNT"; then
       echo "[$(date)] ==> EFS mount successful"
-      echo "${EFS_DNS_NAME}:/ $MODEL_CACHE_MOUNT nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport,_netdev 0 0" | tee -a /etc/fstab > /dev/null
+      echo "$EFS_DNS_NAME:/ $MODEL_CACHE_MOUNT nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport,_netdev 0 0" | tee -a /etc/fstab > /dev/null
       MOUNTED=true
       break
     fi
@@ -130,6 +130,7 @@ docker run -d \
   --name vllm \
   --gpus all \
   --runtime nvidia \
+  --restart unless-stopped \
   -p 8000:8000 \
   -v "$MODEL_CACHE_MOUNT/huggingface:/root/.cache/huggingface" \
   -e HUGGINGFACE_HUB_CACHE="$MODEL_CACHE_MOUNT/huggingface" \
@@ -145,14 +146,23 @@ docker run -d \
 
 # Wait for vLLM to be ready (up to 20 minutes for model loading)
 echo "[$(date)] ==> Waiting for vLLM to be ready..."
+VLLM_READY=false
 for i in {1..240}; do
   if curl -s http://localhost:8000/health > /dev/null 2>&1; then
     echo "[$(date)] ==> vLLM is ready!"
+    VLLM_READY=true
     break
   fi
   echo "[$(date)] ==> Waiting for vLLM health check ($i/240, $((i*5))s elapsed)..."
   sleep 5
 done
+
+if [[ "$VLLM_READY" != "true" ]]; then
+  echo "[$(date)] ==> ERROR: vLLM did not become healthy within 20 minutes" >&2
+  echo "[$(date)] ==> Docker logs:" >&2
+  docker logs vllm 2>&1 | tail -50 >&2
+  exit 1
+fi
 
 # Create health check script for ELB
 mkdir -p /usr/local/bin

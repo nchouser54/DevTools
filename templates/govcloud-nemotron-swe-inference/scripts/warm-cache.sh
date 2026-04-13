@@ -10,8 +10,19 @@
 # Usage:
 #   ./warm-cache.sh [terraform dir] [--timeout 3600]
 #
-# Requirements: aws CLI, jq, terraform (to read outputs)
+# Requirements: aws CLI, jq, terraform (to read outputs), Bash 4+
+#   macOS: install bash 4+ via Homebrew (`brew install bash`) and invoke with:
+#     /opt/homebrew/bin/bash warm-cache.sh
 set -euo pipefail
+
+# Require Bash 4+ for associative arrays.
+if [[ "${BASH_VERSINFO[0]}" -lt 4 ]]; then
+  echo "ERROR: Bash 4+ is required. Detected: $BASH_VERSION" >&2
+  echo "  macOS ships Bash 3.2. Install a newer version:" >&2
+  echo "    brew install bash" >&2
+  echo "  Then run: /opt/homebrew/bin/bash $(basename "$0")" >&2
+  exit 1
+fi
 
 usage() {
   echo "Usage: $(basename "$0") [terraform-dir] [--timeout <seconds>]" >&2
