@@ -1,0 +1,19 @@
+{
+  "name": "GovCloud Nemotron 3 SWE Inference API",
+  "description": "Scalable Nemotron 3 Super Agentic SWE inference API endpoint on Spot Instances with auto-scaling. Multi-option GPU/CPU configurations (g4dn.xlarge, p3.2xlarge, c6i.4xlarge) with ALB front-end.",
+  "slug": "govcloud-nemotron-swe-inference",
+  "tags": [
+    "nemotron",
+    "inference",
+    "swe",
+    "agentic",
+    "gpu",
+    "spot",
+    "alb",
+    "govcloud",
+    "api",
+    "autoscaling",
+    "vllm"
+  ],
+  "icon": "https://www.nvidia.com/favicon.ico"
+}

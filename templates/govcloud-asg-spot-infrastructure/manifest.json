@@ -1,0 +1,17 @@
+{
+  "name": "GovCloud ASG Spot Infrastructure",
+  "description": "Standalone Auto Scaling Group with Spot Instances on AWS GovCloud. For scalable infrastructure (CI/CD runners, application servers, worker pools) not managed by Coder.",
+  "slug": "govcloud-asg-spot-infrastructure",
+  "tags": [
+    "asg",
+    "spot",
+    "govcloud",
+    "infrastructure",
+    "autoscaling",
+    "ec2",
+    "cost-optimized",
+    "ci-cd",
+    "workers"
+  ],
+  "icon": "https://a0.awsstatic.com/libra-css/images/logos/aws_logo_smile_1200x630.png"
+}

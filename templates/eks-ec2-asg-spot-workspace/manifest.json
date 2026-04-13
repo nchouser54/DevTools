@@ -1,0 +1,17 @@
+{
+  "name": "EKS EC2 ASG Spot Workspace",
+  "description": "Launch developer workspaces via Auto Scaling Group with Spot Instances on AWS GovCloud. Provides cost-efficient, scalable AMI-based environments with persistent home storage.",
+  "slug": "eks-ec2-asg-spot-workspace",
+  "tags": [
+    "ec2",
+    "ami",
+    "asg",
+    "spot",
+    "govcloud",
+    "cost-optimized",
+    "developer",
+    "linux",
+    "windows"
+  ],
+  "icon": "https://git-scm.com/images/logo@2x.png"
+}
