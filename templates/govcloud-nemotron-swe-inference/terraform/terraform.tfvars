@@ -10,6 +10,11 @@ certificate_arn = "arn:aws-us-gov:acm:us-gov-west-1:123456789012:certificate/xxx
 alb_internal      = true
 alb_ingress_cidrs = ["10.0.0.0/8"]
 
+# Networking ownership settings
+manage_security_groups      = false
+alb_security_group_ids      = ["sg-allowlisted-alb"]
+instance_security_group_ids = ["sg-allowlisted-instances"]
+
 # Shared platform settings
 enable_spot              = true
 on_demand_base_capacity  = 0
@@ -53,22 +58,23 @@ models = {
     health_check_path           = "/health"
   }
 
-  coder_small = {
-    model_id      = "Qwen/Qwen2.5-Coder-7B-Instruct"
+  gemma_30b = {
+    model_id      = "google/gemma-4-30b-it"
     runtime       = "gpu"
     instance_type = "g6.xlarge"
     instance_overrides = [
-      { instance_type = "g6.xlarge", weighted_capacity = 1 }
+      { instance_type = "g6.xlarge", weighted_capacity = 1 },
+      { instance_type = "g6.2xlarge", weighted_capacity = 2 }
     ]
     min_size                    = 1
     max_size                    = 4
     desired_capacity            = 1
     scale_up_cpu                = 70
     scale_down_cpu              = 25
-    vllm_max_model_len          = 16384
-    vllm_max_num_seqs           = 64
+    vllm_max_model_len          = 8192
+    vllm_max_num_seqs           = 32
     vllm_gpu_memory_utilization = 0.90
-    path_prefix                 = "/v1/models/coder-small"
+    path_prefix                 = "/v1/models/gemma-30b"
     health_check_path           = "/health"
   }
 

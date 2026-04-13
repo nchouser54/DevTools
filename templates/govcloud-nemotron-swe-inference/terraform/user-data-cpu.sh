@@ -9,6 +9,8 @@ VLLM_MAX_MODEL_LEN="${vllm_max_model_len}"
 VLLM_MAX_NUM_SEQS="${vllm_max_num_seqs}"
 MODEL_CACHE_MOUNT="${model_cache_mount}"
 ENABLE_DETAILED_LOGS="${enable_detailed_logs}"
+ENABLE_EFS_CACHE="${enable_efs_cache}"
+EFS_DNS_NAME="${efs_dns_name}"
 
 LOG_FILE="/var/log/nemotron-init.log"
 
@@ -45,37 +47,62 @@ systemctl daemon-reload
 systemctl enable docker
 systemctl start docker
 
-# Mount model cache volume
-echo "[$(date)] ==> Setting up model cache volume"
+# Mount model cache — EFS shared (persists across Spot replacements) or per-instance EBS
+echo "[$(date)] ==> Setting up model cache storage"
 mkdir -p "$MODEL_CACHE_MOUNT"
 
-# Wait for EBS volume to attach (up to 60 sec)
-for i in {1..60}; do
-  if [ -b /dev/nvme1n1 ] || [ -b /dev/sdf ]; then
-    echo "[$(date)] ==> Found EBS volume"
-    break
-  fi
-  echo "[$(date)] ==> Waiting for EBS volume ($i/60)..."
-  sleep 1
-done
+if [[ "$ENABLE_EFS_CACHE" == "true" ]]; then
+  echo "[$(date)] ==> EFS shared cache enabled: $EFS_DNS_NAME"
+  apt-get install -y --no-install-recommends nfs-common
 
-# Format and mount if not already mounted
-if ! mountpoint -q "$MODEL_CACHE_MOUNT"; then
-  DEVICE=""
-  if [ -b /dev/nvme1n1 ]; then
-    DEVICE="/dev/nvme1n1"
-  elif [ -b /dev/sdf ]; then
-    DEVICE="/dev/sdf"
-  fi
-
-  if [ -n "$DEVICE" ]; then
-    echo "[$(date)] ==> Formatting and mounting $DEVICE"
-    if ! sudo blkid "$DEVICE"; then
-      sudo mkfs.ext4 -F "$DEVICE"
+  # Retry NFS mount — network + EFS mount targets may need a few seconds
+  MOUNTED=false
+  for i in {1..30}; do
+    if mount -t nfs4 \
+        -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport \
+        "${EFS_DNS_NAME}:/" "$MODEL_CACHE_MOUNT"; then
+      echo "[$(date)] ==> EFS mount successful"
+      echo "${EFS_DNS_NAME}:/ $MODEL_CACHE_MOUNT nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport,_netdev 0 0" | tee -a /etc/fstab > /dev/null
+      MOUNTED=true
+      break
     fi
-    sudo mount "$DEVICE" "$MODEL_CACHE_MOUNT"
-    sudo chown -R nobody:nogroup "$MODEL_CACHE_MOUNT"
-    echo "$DEVICE $MODEL_CACHE_MOUNT ext4 defaults,nofail 0 2" | sudo tee -a /etc/fstab > /dev/null
+    echo "[$(date)] ==> EFS mount attempt $i/30 failed, retrying in 5s..."
+    sleep 5
+  done
+
+  if [[ "$MOUNTED" != "true" ]]; then
+    echo "[$(date)] ==> ERROR: Failed to mount EFS after 30 attempts" >&2
+    exit 1
+  fi
+else
+  # Wait for EBS volume to attach (up to 60 sec)
+  for i in {1..60}; do
+    if [ -b /dev/nvme1n1 ] || [ -b /dev/sdf ]; then
+      echo "[$(date)] ==> Found EBS volume"
+      break
+    fi
+    echo "[$(date)] ==> Waiting for EBS volume ($i/60)..."
+    sleep 1
+  done
+
+  # Format and mount if not already mounted
+  if ! mountpoint -q "$MODEL_CACHE_MOUNT"; then
+    DEVICE=""
+    if [ -b /dev/nvme1n1 ]; then
+      DEVICE="/dev/nvme1n1"
+    elif [ -b /dev/sdf ]; then
+      DEVICE="/dev/sdf"
+    fi
+
+    if [ -n "$DEVICE" ]; then
+      echo "[$(date)] ==> Formatting and mounting $DEVICE"
+      if ! blkid "$DEVICE"; then
+        mkfs.ext4 -F "$DEVICE"
+      fi
+      mount "$DEVICE" "$MODEL_CACHE_MOUNT"
+      chown -R nobody:nogroup "$MODEL_CACHE_MOUNT"
+      echo "$DEVICE $MODEL_CACHE_MOUNT ext4 defaults,nofail 0 2" | tee -a /etc/fstab > /dev/null
+    fi
   fi
 fi
 

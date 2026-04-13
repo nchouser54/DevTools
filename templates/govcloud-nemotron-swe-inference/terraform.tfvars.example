@@ -6,9 +6,26 @@ subnet_ids = ["subnet-private-a", "subnet-private-b", "subnet-private-c"]
 alb_subnets = ["subnet-private-a", "subnet-private-b"]
 certificate_arn = "arn:aws-us-gov:acm:us-gov-west-1:123456789012:certificate/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
+# Optional AMI override (recommended for approved GPU AMIs in GovCloud)
+# ami_id = "ami-xxxxxxxxxxxxxxxxx"
+
+# Shared EFS model cache — mount a pre-created EFS to persist model weights across Spot
+# replacements and scale-out events. Without EFS, each new instance re-downloads ~100-500 GB.
+# Set enable_efs_cache = true and supply the ID of an existing EFS file system in this VPC.
+# The template does NOT create the EFS; provision it separately and allow port 2049 (NFS) from
+# the instance security group to the EFS security group.
+# enable_efs_cache   = true
+# efs_file_system_id = "fs-xxxxxxxxxxxxxxxxx"
+
 # Private endpoint settings (no public IP exposure)
 alb_internal = true
 alb_ingress_cidrs = ["10.0.0.0/8"]
+
+# Networking ownership settings
+# Keep false to use only pre-approved SGs and avoid template-managed SG rule changes.
+manage_security_groups = false
+alb_security_group_ids = ["sg-allowlisted-alb"]
+instance_security_group_ids = ["sg-allowlisted-instances"]
 
 # Shared platform settings
 enable_spot              = true
@@ -32,6 +49,8 @@ common_tags = {
 
 # Multi-model map: each key creates its own launch template + ASG + target group + route.
 models = {
+  # Nemotron runs on the g6 family by default in this template.
+  # Keep the override order from smallest to largest for Spot fallback.
   nemotron = {
     model_id      = "nvidia/Nemotron-3-Super-Agentic-SWE-405B-Instruct"
     runtime       = "gpu"
@@ -53,22 +72,23 @@ models = {
     health_check_path = "/health"
   }
 
-  coder_small = {
-    model_id      = "Qwen/Qwen2.5-Coder-7B-Instruct"
+  gemma_30b = {
+    model_id      = "google/gemma-4-30b-it"
     runtime       = "gpu"
     instance_type = "g6.xlarge"
     instance_overrides = [
-      { instance_type = "g6.xlarge", weighted_capacity = 1 }
+      { instance_type = "g6.xlarge", weighted_capacity = 1 },
+      { instance_type = "g6.2xlarge", weighted_capacity = 2 }
     ]
     min_size          = 1
     max_size          = 4
     desired_capacity  = 1
     scale_up_cpu      = 70
     scale_down_cpu    = 25
-    vllm_max_model_len = 16384
-    vllm_max_num_seqs  = 64
+    vllm_max_model_len = 8192
+    vllm_max_num_seqs  = 32
     vllm_gpu_memory_utilization = 0.90
-    path_prefix       = "/v1/models/coder-small"
+    path_prefix       = "/v1/models/gemma-30b"
     health_check_path = "/health"
   }
 

@@ -30,12 +30,12 @@ variable "subnet_ids" {
 }
 
 variable "alb_subnets" {
-  description = "Public subnet IDs for ALB"
+  description = "Subnet IDs for ALB (use private subnets when alb_internal=true)"
   type        = list(string)
 
   validation {
     condition     = length(var.alb_subnets) >= 2
-    error_message = "Provide at least 2 public subnets for ALB."
+    error_message = "Provide at least 2 subnets for ALB."
   }
 }
 
@@ -49,6 +49,12 @@ variable "certificate_arn" {
   }
 }
 
+variable "ami_id" {
+  description = "Optional AMI override. When set, this AMI is used for all model pools."
+  type        = string
+  default     = ""
+}
+
 variable "alb_internal" {
   description = "Whether ALB is internal/private only"
   type        = bool
@@ -59,6 +65,30 @@ variable "alb_ingress_cidrs" {
   description = "CIDR blocks allowed to reach ALB listeners (443/80). Leave empty for defaults."
   type        = list(string)
   default     = []
+}
+
+variable "manage_security_groups" {
+  description = "If true, template creates and manages ALB/instance security groups. Keep false to use only pre-approved SGs."
+  type        = bool
+  default     = false
+}
+
+variable "alb_security_group_ids" {
+  description = "Pre-approved ALB security group IDs to attach when manage_security_groups=false."
+  type        = list(string)
+  default     = []
+}
+
+variable "instance_security_group_ids" {
+  description = "Pre-approved instance security group IDs to attach when manage_security_groups=false."
+  type        = list(string)
+  default     = []
+}
+
+variable "enforce_private_networking" {
+  description = "If true, deployment fails when ALB is public or ALB ingress allows 0.0.0.0/0."
+  type        = bool
+  default     = true
 }
 
 variable "models" {
@@ -102,6 +132,25 @@ variable "models" {
       scale_down_cpu    = 30
       path_prefix       = "/v1/models/nemotron"
       health_check_path = "/health"
+    }
+    gemma_30b = {
+      model_id      = "google/gemma-4-30b-it"
+      runtime       = "gpu"
+      instance_type = "g6.xlarge"
+      instance_overrides = [
+        { instance_type = "g6.xlarge", weighted_capacity = 1 },
+        { instance_type = "g6.2xlarge", weighted_capacity = 2 }
+      ]
+      min_size                    = 1
+      max_size                    = 4
+      desired_capacity            = 1
+      scale_up_cpu                = 70
+      scale_down_cpu              = 25
+      vllm_max_model_len          = 8192
+      vllm_max_num_seqs           = 32
+      vllm_gpu_memory_utilization = 0.90
+      path_prefix                 = "/v1/models/gemma-30b"
+      health_check_path           = "/health"
     }
   }
 
@@ -173,6 +222,23 @@ variable "enable_detailed_logging" {
   description = "Enable detailed logs"
   type        = bool
   default     = true
+}
+
+variable "enable_efs_cache" {
+  description = "Mount a shared EFS file system for model weights cache. When true, Spot replacements reuse already-downloaded models and skip re-downloading on startup."
+  type        = bool
+  default     = false
+}
+
+variable "efs_file_system_id" {
+  description = "EFS file system ID (fs-xxxxxxxx) to use as shared model cache. Required when enable_efs_cache=true. Provide an existing EFS — the template does not create one."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.efs_file_system_id == "" || can(regex("^fs-[0-9a-f]+$", var.efs_file_system_id))
+    error_message = "efs_file_system_id must be empty or a valid EFS ID (fs-xxxxxxxx)."
+  }
 }
 
 variable "common_tags" {

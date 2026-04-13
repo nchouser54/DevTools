@@ -48,10 +48,19 @@ locals {
   alb_ingress_cidrs_resolved = length(var.alb_ingress_cidrs) > 0 ? var.alb_ingress_cidrs : (
     var.alb_internal ? ["10.0.0.0/8"] : ["0.0.0.0/0"]
   )
+
+  effective_alb_security_group_ids      = var.manage_security_groups ? [aws_security_group.alb[0].id] : var.alb_security_group_ids
+  effective_instance_security_group_ids = var.manage_security_groups ? [aws_security_group.nemotron_instances[0].id] : var.instance_security_group_ids
+  selected_ami_id                       = length(trimspace(var.ami_id)) > 0 ? var.ami_id : data.aws_ami.ubuntu.id
+
+  # EFS shared model cache DNS (resolved per region; empty when EFS cache is disabled)
+  efs_dns_name = var.enable_efs_cache ? "${var.efs_file_system_id}.efs.${var.aws_region}.amazonaws.com" : ""
 }
 
 # Security Groups
 resource "aws_security_group" "nemotron_instances" {
+  count = var.manage_security_groups ? 1 : 0
+
   name_prefix = "nemotron-instances-"
   description = "Security group for multi-model inference instances"
   vpc_id      = var.vpc_id
@@ -60,7 +69,7 @@ resource "aws_security_group" "nemotron_instances" {
     from_port       = 8000
     to_port         = 8000
     protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
+    security_groups = [aws_security_group.alb[0].id]
   }
 
   egress {
@@ -74,6 +83,8 @@ resource "aws_security_group" "nemotron_instances" {
 }
 
 resource "aws_security_group" "alb" {
+  count = var.manage_security_groups ? 1 : 0
+
   name_prefix = "multimodel-alb-"
   description = "Security group for multi-model ALB"
   vpc_id      = var.vpc_id
@@ -185,7 +196,7 @@ resource "aws_launch_template" "model" {
   for_each = local.models
 
   name_prefix   = "mdl-${replace(each.key, "_", "-")}-"
-  image_id      = data.aws_ami.ubuntu.id
+  image_id      = local.selected_ami_id
   instance_type = each.value.instance_type
 
   iam_instance_profile {
@@ -204,7 +215,7 @@ resource "aws_launch_template" "model" {
 
   network_interfaces {
     associate_public_ip_address = false
-    security_groups             = [aws_security_group.nemotron_instances.id]
+    security_groups             = local.effective_instance_security_group_ids
     delete_on_termination       = true
   }
 
@@ -235,12 +246,16 @@ resource "aws_launch_template" "model" {
     vllm_gpu_memory_util = each.value.vllm_gpu_memory_utilization
     model_cache_mount    = "/mnt/model-cache/${each.key}"
     enable_detailed_logs = var.enable_detailed_logging
+    enable_efs_cache     = var.enable_efs_cache
+    efs_dns_name         = local.efs_dns_name
     })) : base64encode(templatefile("${path.module}/user-data-cpu.sh", {
     model_id             = each.value.model_id
     vllm_max_model_len   = each.value.vllm_max_model_len
     vllm_max_num_seqs    = each.value.vllm_max_num_seqs
     model_cache_mount    = "/mnt/model-cache/${each.key}"
     enable_detailed_logs = var.enable_detailed_logging
+    enable_efs_cache     = var.enable_efs_cache
+    efs_dns_name         = local.efs_dns_name
   }))
 
   tag_specifications {
@@ -262,6 +277,16 @@ resource "aws_launch_template" "model" {
 
   lifecycle {
     create_before_destroy = true
+
+    precondition {
+      condition     = var.manage_security_groups || length(var.instance_security_group_ids) > 0
+      error_message = "Provide instance_security_group_ids when manage_security_groups=false."
+    }
+
+    precondition {
+      condition     = !var.enable_efs_cache || length(trimspace(var.efs_file_system_id)) > 0
+      error_message = "efs_file_system_id must be set to a valid EFS ID (fs-xxxxxxxx) when enable_efs_cache=true."
+    }
   }
 }
 
@@ -269,11 +294,28 @@ resource "aws_lb" "inference_api" {
   name_prefix        = "mmapi"
   load_balancer_type = "application"
   internal           = var.alb_internal
-  security_groups    = [aws_security_group.alb.id]
+  security_groups    = local.effective_alb_security_group_ids
   subnets            = var.alb_subnets
 
   enable_deletion_protection = false
   enable_http2               = true
+
+  lifecycle {
+    precondition {
+      condition     = var.enforce_private_networking ? var.alb_internal : true
+      error_message = "Private networking policy violation: alb_internal must be true when enforce_private_networking=true."
+    }
+
+    precondition {
+      condition     = var.enforce_private_networking ? !contains(local.alb_ingress_cidrs_resolved, "0.0.0.0/0") : true
+      error_message = "Private networking policy violation: alb_ingress_cidrs may not include 0.0.0.0/0 when enforce_private_networking=true."
+    }
+
+    precondition {
+      condition     = var.manage_security_groups || length(var.alb_security_group_ids) > 0
+      error_message = "Provide alb_security_group_ids when manage_security_groups=false."
+    }
+  }
 
   tags = merge(var.common_tags, { Name = "multi-model-api" })
 }

@@ -53,6 +53,54 @@ if ! grep -Eq '^[[:space:]]*models[[:space:]]*=' "$TFVARS_PATH"; then
   exit 1
 fi
 
+ENFORCE_PRIVATE="$(grep -E '^[[:space:]]*enforce_private_networking[[:space:]]*=' "$TFVARS_PATH" | tail -n1 | sed -E 's/.*=[[:space:]]*"?([^" ]+)"?.*/\1/' | tr '[:upper:]' '[:lower:]' || true)"
+if [[ -z "$ENFORCE_PRIVATE" ]]; then
+  ENFORCE_PRIVATE="true"
+fi
+
+if [[ "$ENFORCE_PRIVATE" == "true" ]]; then
+  ALB_INTERNAL_VALUE="$(grep -E '^[[:space:]]*alb_internal[[:space:]]*=' "$TFVARS_PATH" | tail -n1 | sed -E 's/.*=[[:space:]]*"?([^" ]+)"?.*/\1/' | tr '[:upper:]' '[:lower:]' || true)"
+  if [[ -z "$ALB_INTERNAL_VALUE" ]]; then
+    ALB_INTERNAL_VALUE="true"
+  fi
+
+  if [[ "$ALB_INTERNAL_VALUE" != "true" ]]; then
+    echo "ERROR: Private networking policy violation: alb_internal must be true." >&2
+    exit 1
+  fi
+
+  if grep -Eq '^[[:space:]]*alb_ingress_cidrs[[:space:]]*=.*0\.0\.0\.0/0' "$TFVARS_PATH"; then
+    echo "ERROR: Private networking policy violation: alb_ingress_cidrs cannot include 0.0.0.0/0." >&2
+    exit 1
+  fi
+fi
+
+MANAGE_SG_VALUE="$(grep -E '^[[:space:]]*manage_security_groups[[:space:]]*=' "$TFVARS_PATH" | tail -n1 | sed -E 's/.*=[[:space:]]*"?([^" ]+)"?.*/\1/' | tr '[:upper:]' '[:lower:]' || true)"
+if [[ -z "$MANAGE_SG_VALUE" ]]; then
+  MANAGE_SG_VALUE="false"
+fi
+
+if [[ "$MANAGE_SG_VALUE" == "false" ]]; then
+  if ! grep -Eq '^[[:space:]]*alb_security_group_ids[[:space:]]*=.*\[[^]]+\]' "$TFVARS_PATH"; then
+    echo "ERROR: Provide non-empty alb_security_group_ids when manage_security_groups=false." >&2
+    exit 1
+  fi
+  if ! grep -Eq '^[[:space:]]*instance_security_group_ids[[:space:]]*=.*\[[^]]+\]' "$TFVARS_PATH"; then
+    echo "ERROR: Provide non-empty instance_security_group_ids when manage_security_groups=false." >&2
+    exit 1
+  fi
+fi
+
+EFS_CACHE_VALUE="$(grep -E '^[[:space:]]*enable_efs_cache[[:space:]]*=' "$TFVARS_PATH" | tail -n1 | sed -E 's/.*=[[:space:]]*"?([^" ]+)"?.*/\1/' | tr '[:upper:]' '[:lower:]' || true)"
+if [[ "$EFS_CACHE_VALUE" == "true" ]]; then
+  EFS_FS_ID="$(grep -E '^[[:space:]]*efs_file_system_id[[:space:]]*=' "$TFVARS_PATH" | tail -n1 | sed -E 's/.*=[[:space:]]*"([^"]+)".*/\1/' || true)"
+  if [[ -z "$EFS_FS_ID" ]] || [[ "$EFS_FS_ID" != fs-* ]]; then
+    echo "ERROR: efs_file_system_id must be set to a valid EFS ID (fs-xxxxxxxx) when enable_efs_cache=true." >&2
+    exit 1
+  fi
+  echo "INFO: EFS shared model cache enabled: $EFS_FS_ID"
+fi
+
 AWS_REGION_VALUE="$(grep -E '^[[:space:]]*aws_region[[:space:]]*=' "$TFVARS_PATH" | tail -n1 | sed -E 's/.*=[[:space:]]*"?([^" ]+)"?.*/\1/' || true)"
 if [[ -z "$AWS_REGION_VALUE" ]]; then
   AWS_REGION_VALUE="${AWS_REGION:-us-gov-west-1}"

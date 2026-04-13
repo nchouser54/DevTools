@@ -47,7 +47,7 @@ terraform output model_routes
 
 Use routes like:
 - `/v1/models/nemotron/completions`
-- `/v1/models/coder-small/completions`
+- `/v1/models/gemma-30b/completions`
 - `/v1/models/cpu-fallback/completions`
 
 Note: with `alb_internal = true`, the endpoint is private and only reachable from networks in `alb_ingress_cidrs` (or connected private networks such as VPN/Direct Connect/VPC peers).
