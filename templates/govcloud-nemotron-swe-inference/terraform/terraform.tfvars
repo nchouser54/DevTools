@@ -1,82 +1,92 @@
 aws_region = "us-gov-west-1"
 
-# VPC Configuration
-vpc_id = "vpc-xxxxx"
+# VPC configuration
+vpc_id          = "vpc-xxxxx"
+subnet_ids      = ["subnet-private-a", "subnet-private-b", "subnet-private-c"]
+alb_subnets     = ["subnet-private-a", "subnet-private-b"]
+certificate_arn = "arn:aws-us-gov:acm:us-gov-west-1:123456789012:certificate/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
-# Private subnets for EC2 instances (3+, across AZs)
-subnet_ids = [
-  "subnet-xxxxx",
-  "subnet-yyyyy",
-  "subnet-zzzzz"
-]
+# Private endpoint settings (no public IP exposure)
+alb_internal      = true
+alb_ingress_cidrs = ["10.0.0.0/8"]
 
-# Public subnets for ALB (2+)
-alb_subnets = [
-  "subnet-public-xxxxx",
-  "subnet-public-yyyyy"
-]
-
-# SSL certificate for HTTPS
-certificate_arn = "arn:aws-us-gov:acm:us-gov-west-1:account-id:certificate/cert-id"
-
-# Nemotron Model Configuration
-nemotron_model_id           = "nvidia/Nemotron-3-Super-Agentic-SWE-405B-Instruct"
-vllm_max_model_len          = 8192
-vllm_max_num_seqs           = 32
-vllm_gpu_memory_utilization = 0.90
-
-# Option 1: g4dn.xlarge (T4 GPU)
-option_1_enabled          = false
-option_1_min_size         = 2
-option_1_max_size         = 8
-option_1_desired_capacity = 3
-option_1_scale_up_cpu     = 75
-option_1_scale_down_cpu   = 30
-
-# Option 2: p3.2xlarge (V100 GPU) - More powerful, more expensive
-option_2_enabled          = false
-option_2_min_size         = 2
-option_2_max_size         = 6
-option_2_desired_capacity = 3
-option_2_scale_up_cpu     = 75
-option_2_scale_down_cpu   = 30
-
-# Option 3: c6i.4xlarge (CPU-only) - Always available, very slow
-option_3_enabled          = false
-option_3_min_size         = 3
-option_3_max_size         = 20
-option_3_desired_capacity = 5
-option_3_scale_up_cpu     = 65
-option_3_scale_down_cpu   = 25
-
-# Option 4: g6.xlarge (L40 GPU) - RECOMMENDED default for inference
-option_4_enabled          = true
-option_4_min_size         = 2
-option_4_max_size         = 8
-option_4_desired_capacity = 3
-option_4_scale_up_cpu     = 75
-option_4_scale_down_cpu   = 30
-
-# Spot Instance Configuration
+# Shared platform settings
 enable_spot              = true
-on_demand_base_capacity  = 0  # Start with pure Spot
-on_demand_percentage     = 20 # 20% on-demand above base (for stability)
+on_demand_base_capacity  = 0
+on_demand_percentage     = 30
 spot_allocation_strategy = "capacity-optimized"
-spot_instance_pools      = 3 # Diversify across pools
+spot_instance_pools      = 3
 
-# Storage
 root_volume_size_gb        = 50
-model_cache_volume_size_gb = 150 # Nemotron 405B is ~120 GB
+model_cache_volume_size_gb = 200
 
-# Monitoring & Logging
 enable_cloudwatch_detailed = true
 enable_detailed_logging    = true
 
-# Common Tags
 common_tags = {
   Environment = "production"
-  Project     = "nemotron-swe"
+  Project     = "multi-model-inference"
   ManagedBy   = "terraform"
-  CostCenter  = "ai-platform"
-  Owner       = "team-ai"
+  Team        = "ai-platform"
+}
+
+# Multi-model map: each key creates its own launch template + ASG + target group + route.
+models = {
+  nemotron = {
+    model_id      = "nvidia/Nemotron-3-Super-Agentic-SWE-405B-Instruct"
+    runtime       = "gpu"
+    instance_type = "g6.xlarge"
+    instance_overrides = [
+      { instance_type = "g6.xlarge", weighted_capacity = 1 },
+      { instance_type = "g6.2xlarge", weighted_capacity = 2 },
+      { instance_type = "g6.12xlarge", weighted_capacity = 8 }
+    ]
+    min_size                    = 2
+    max_size                    = 8
+    desired_capacity            = 3
+    scale_up_cpu                = 75
+    scale_down_cpu              = 30
+    vllm_max_model_len          = 8192
+    vllm_max_num_seqs           = 32
+    vllm_gpu_memory_utilization = 0.90
+    path_prefix                 = "/v1/models/nemotron"
+    health_check_path           = "/health"
+  }
+
+  coder_small = {
+    model_id      = "Qwen/Qwen2.5-Coder-7B-Instruct"
+    runtime       = "gpu"
+    instance_type = "g6.xlarge"
+    instance_overrides = [
+      { instance_type = "g6.xlarge", weighted_capacity = 1 }
+    ]
+    min_size                    = 1
+    max_size                    = 4
+    desired_capacity            = 1
+    scale_up_cpu                = 70
+    scale_down_cpu              = 25
+    vllm_max_model_len          = 16384
+    vllm_max_num_seqs           = 64
+    vllm_gpu_memory_utilization = 0.90
+    path_prefix                 = "/v1/models/coder-small"
+    health_check_path           = "/health"
+  }
+
+  cpu_fallback = {
+    model_id      = "mistral:latest"
+    runtime       = "cpu"
+    instance_type = "c6i.4xlarge"
+    instance_overrides = [
+      { instance_type = "c6i.4xlarge", weighted_capacity = 1 }
+    ]
+    min_size                  = 1
+    max_size                  = 3
+    desired_capacity          = 1
+    scale_up_cpu              = 65
+    scale_down_cpu            = 25
+    path_prefix               = "/v1/models/cpu-fallback"
+    health_check_path         = "/health"
+    health_check_grace_period = 300
+    capacity_rebalance        = false
+  }
 }

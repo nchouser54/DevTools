@@ -96,11 +96,10 @@ systemctl restart ollama
 echo "[$(date)] ==> Waiting for Ollama to start..."
 sleep 10
 
-# Pull Mistral or similar open-source model as Nemotron is proprietary on HF
-# For actual Nemotron, you'd need to convert GGGUF format or use vLLM with CPU offload
-# This is a fallback using Mistral 7B for demonstration
-echo "[$(date)] ==> Pulling Mistral model (Nemotron not available free in GGUF format)"
-ollama pull mistral:latest
+# Pull configured model for CPU runtime.
+# Note: this runtime expects an Ollama-compatible model identifier.
+echo "[$(date)] ==> Pulling CPU model: $MODEL_ID"
+ollama pull "$MODEL_ID"
 
 # Create a simple wrapper API that mimics vLLM's OpenAI-compatible interface
 cat > /opt/api-wrapper.py << 'WRAPPER_EOF'
@@ -120,7 +119,7 @@ app = flask.Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
 OLLAMA_URL = "http://localhost:11434"
-MODEL = "mistral:latest"
+MODEL = "${MODEL_ID}"
 
 @app.route("/health", methods=["GET"])
 def health():

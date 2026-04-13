@@ -223,7 +223,7 @@ resource "aws_launch_template" "model" {
     ebs {
       volume_size           = var.model_cache_volume_size_gb
       volume_type           = "gp3"
-      delete_on_termination = false
+      delete_on_termination = true
       encrypted             = true
     }
   }
@@ -281,10 +281,10 @@ resource "aws_lb" "inference_api" {
 resource "aws_lb_target_group" "model" {
   for_each = local.models
 
-  name_prefix = "m${substr(replace(each.key, "_", ""), 0, 5)}"
-  port        = 8000
-  protocol    = "HTTP"
-  vpc_id      = var.vpc_id
+  name     = "tg-${substr(replace(each.key, "_", "-"), 0, 20)}-${substr(md5(each.key), 0, 8)}"
+  port     = 8000
+  protocol = "HTTP"
+  vpc_id   = var.vpc_id
 
   health_check {
     healthy_threshold   = 2
@@ -359,11 +359,6 @@ resource "aws_autoscaling_group" "model" {
   health_check_type         = "ELB"
   health_check_grace_period = each.value.health_check_grace_period
   target_group_arns         = [aws_lb_target_group.model[each.key].arn]
-
-  launch_template {
-    id      = aws_launch_template.model[each.key].id
-    version = "$Latest"
-  }
 
   mixed_instances_policy {
     instances_distribution {

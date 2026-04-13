@@ -2,12 +2,18 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $(basename "$0") [terraform.tfvars path]" >&2
+  echo "Usage: $(basename "$0") [--skip-aws-auth] [terraform.tfvars path]" >&2
 }
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   usage
   exit 0
+fi
+
+SKIP_AWS_AUTH=false
+if [[ "${1:-}" == "--skip-aws-auth" ]]; then
+  SKIP_AWS_AUTH=true
+  shift
 fi
 
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
@@ -32,9 +38,14 @@ for dep in aws terraform; do
   fi
 done
 
-if ! aws sts get-caller-identity >/dev/null 2>&1; then
-  echo "ERROR: AWS identity check failed. Verify credentials and network access." >&2
-  exit 1
+if [[ "$SKIP_AWS_AUTH" == "false" ]]; then
+  if ! aws sts get-caller-identity >/dev/null 2>&1; then
+    echo "ERROR: AWS identity check failed. Verify credentials and network access." >&2
+    echo "Hint: use --skip-aws-auth for static preflight only." >&2
+    exit 1
+  fi
+else
+  echo "WARN: Skipping AWS identity check (--skip-aws-auth)." >&2
 fi
 
 if ! grep -Eq '^[[:space:]]*models[[:space:]]*=' "$TFVARS_PATH"; then
@@ -60,7 +71,7 @@ if [[ -n "$INSTANCE_TYPES" ]]; then
   fi
 fi
 
-terraform -chdir="$TERRAFORM_DIR" init -input=false -upgrade >/dev/null
+terraform -chdir="$TERRAFORM_DIR" init -input=false >/dev/null
 terraform -chdir="$TERRAFORM_DIR" validate >/dev/null
 
 echo "Preflight passed: $TFVARS_PATH"
