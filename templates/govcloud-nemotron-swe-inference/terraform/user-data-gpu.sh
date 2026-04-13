@@ -12,6 +12,7 @@ MODEL_CACHE_MOUNT="${model_cache_mount}"
 ENABLE_DETAILED_LOGS="${enable_detailed_logs}"
 ENABLE_EFS_CACHE="${enable_efs_cache}"
 EFS_DNS_NAME="${efs_dns_name}"
+TENSOR_PARALLEL_SIZE="${tensor_parallel_size}"
 
 LOG_FILE="/var/log/nemotron-init.log"
 
@@ -140,7 +141,9 @@ docker run -d \
   --max-model-len $VLLM_MAX_MODEL_LEN \
   --max-num-seqs $VLLM_MAX_NUM_SEQS \
   --gpu-memory-utilization $VLLM_GPU_MEMORY_UTIL \
+  --tensor-parallel-size $TENSOR_PARALLEL_SIZE \
   --dtype auto \
+  --enable-prefix-caching \
   --disable-log-requests \
   --port 8000
 

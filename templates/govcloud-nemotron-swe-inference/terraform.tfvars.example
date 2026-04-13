@@ -49,44 +49,48 @@ common_tags = {
 
 # Multi-model map: each key creates its own launch template + ASG + target group + route.
 models = {
-  # Nemotron runs on the g6 family by default in this template.
-  # Keep the override order from smallest to largest for Spot fallback.
+  # Nemotron-3-405B: ~810 GB VRAM at fp16. Requires p4d.24xlarge (8× A100 80GB = 640 GB)
+  # with quantization (AWQ/GPTQ), or p5.48xlarge (8× H100 80GB) for better throughput.
+  # tensor_parallel_size must equal the number of GPUs on the selected instance.
   nemotron = {
     model_id      = "nvidia/Nemotron-3-Super-Agentic-SWE-405B-Instruct"
     runtime       = "gpu"
-    instance_type = "g6.xlarge"
+    instance_type = "p4d.24xlarge"
     instance_overrides = [
-      { instance_type = "g6.xlarge", weighted_capacity = 1 },
-      { instance_type = "g6.2xlarge", weighted_capacity = 2 },
-      { instance_type = "g6.12xlarge", weighted_capacity = 8 }
+      { instance_type = "p4d.24xlarge", weighted_capacity = 1 },
+      { instance_type = "p5.48xlarge", weighted_capacity = 1 }
     ]
-    min_size          = 2
-    max_size          = 8
-    desired_capacity  = 3
-    scale_up_cpu      = 75
-    scale_down_cpu    = 30
-    vllm_max_model_len = 8192
-    vllm_max_num_seqs  = 32
-    vllm_gpu_memory_utilization = 0.90
+    min_size             = 1
+    max_size             = 4
+    desired_capacity     = 1
+    scale_up_cpu         = 75
+    scale_down_cpu       = 30
+    tensor_parallel_size = 8
+    vllm_max_model_len          = 4096
+    vllm_max_num_seqs           = 8
+    vllm_gpu_memory_utilization = 0.95
+    health_check_grace_period   = 1800
     path_prefix       = "/v1/models/nemotron"
     health_check_path = "/health"
   }
 
+  # Gemma-4-30B: ~60 GB VRAM at fp16. Fits on g6.12xlarge (4× L4 = 96 GB) with headroom.
+  # tensor_parallel_size=4 splits the model across all 4 GPUs on the instance.
   gemma_30b = {
     model_id      = "google/gemma-4-30b-it"
     runtime       = "gpu"
-    instance_type = "g6.xlarge"
+    instance_type = "g6.12xlarge"
     instance_overrides = [
-      { instance_type = "g6.xlarge", weighted_capacity = 1 },
-      { instance_type = "g6.2xlarge", weighted_capacity = 2 }
+      { instance_type = "g6.12xlarge", weighted_capacity = 1 }
     ]
-    min_size          = 1
-    max_size          = 4
-    desired_capacity  = 1
-    scale_up_cpu      = 70
-    scale_down_cpu    = 25
-    vllm_max_model_len = 8192
-    vllm_max_num_seqs  = 32
+    min_size                    = 1
+    max_size                    = 4
+    desired_capacity            = 1
+    scale_up_cpu                = 70
+    scale_down_cpu              = 25
+    tensor_parallel_size        = 4
+    vllm_max_model_len          = 8192
+    vllm_max_num_seqs           = 32
     vllm_gpu_memory_utilization = 0.90
     path_prefix       = "/v1/models/gemma-30b"
     health_check_path = "/health"

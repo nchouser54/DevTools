@@ -39,6 +39,7 @@ locals {
       vllm_max_model_len          = cfg.vllm_max_model_len
       vllm_max_num_seqs           = cfg.vllm_max_num_seqs
       vllm_gpu_memory_utilization = cfg.vllm_gpu_memory_utilization
+      tensor_parallel_size        = cfg.tensor_parallel_size
       path_prefix                 = cfg.path_prefix != "" ? cfg.path_prefix : "/v1/models/${name}"
       health_check_path           = cfg.health_check_path
     }
@@ -261,6 +262,7 @@ resource "aws_launch_template" "model" {
     vllm_max_model_len   = each.value.vllm_max_model_len
     vllm_max_num_seqs    = each.value.vllm_max_num_seqs
     vllm_gpu_memory_util = each.value.vllm_gpu_memory_utilization
+    tensor_parallel_size = each.value.tensor_parallel_size
     model_cache_mount    = "/mnt/model-cache/${each.key}"
     enable_detailed_logs = var.enable_detailed_logging
     enable_efs_cache     = var.enable_efs_cache
