@@ -1,8 +1,9 @@
 {
-  "name": "GovCloud Nemotron 3 SWE Inference API",
-  "description": "Scalable Nemotron 3 Super Agentic SWE inference API endpoint on Spot Instances with auto-scaling. Multi-option GPU/CPU configurations (g4dn.xlarge, p3.2xlarge, c6i.4xlarge) with ALB front-end.",
+  "name": "GovCloud Multi-Model Inference API",
+  "description": "Scalable multi-model inference API on AWS GovCloud using Spot-backed Auto Scaling Groups per model with path-based routing behind one ALB endpoint.",
   "slug": "govcloud-nemotron-swe-inference",
   "tags": [
+    "multi-model",
     "nemotron",
     "inference",
     "swe",

@@ -12,7 +12,7 @@ fi
 
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 TERRAFORM_DIR="$SCRIPT_DIR/../terraform"
-TFVARS_INPUT="${1:-$SCRIPT_DIR/../terraform.tfvars}"
+TFVARS_INPUT="${1:-$TERRAFORM_DIR/terraform.tfvars}"
 
 if [[ "$TFVARS_INPUT" != /* ]]; then
   TFVARS_PATH="$(cd -- "$(dirname -- "$TFVARS_INPUT")" && pwd)/$(basename -- "$TFVARS_INPUT")"
@@ -27,7 +27,7 @@ fi
 
 "$SCRIPT_DIR/preflight.sh" "$TFVARS_PATH"
 
-terraform -chdir="$TERRAFORM_DIR" init
+terraform -chdir="$TERRAFORM_DIR" init -input=false
 terraform -chdir="$TERRAFORM_DIR" validate
 terraform -chdir="$TERRAFORM_DIR" plan -var-file="$TFVARS_PATH"
 terraform -chdir="$TERRAFORM_DIR" apply -var-file="$TFVARS_PATH"
