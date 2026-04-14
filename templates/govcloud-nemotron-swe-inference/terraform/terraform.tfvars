@@ -86,11 +86,14 @@ models = {
       { instance_type = "g6.12xlarge", weighted_capacity = 1 },
       { instance_type = "g5.12xlarge", weighted_capacity = 1 }
     ]
-    min_size                    = 1
-    max_size                    = 4
-    desired_capacity            = 1
-    scale_up_cpu                = 70
-    scale_down_cpu              = 25
+    min_size         = 1
+    max_size         = 4
+    desired_capacity = 1
+    scale_up_cpu     = 70
+    scale_down_cpu   = 25
+    # g6.12xlarge has 4× L4 GPUs (24 GB each = 96 GB). Gemma-4-30B at BF16 is ~60 GB;
+    # tensor-parallelism across all 4 GPUs is required — default of 1 will OOM.
+    tensor_parallel_size        = 4
     vllm_max_model_len          = 8192
     vllm_max_num_seqs           = 32
     vllm_gpu_memory_utilization = 0.90
