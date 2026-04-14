@@ -13,6 +13,7 @@ provider "aws" {
 }
 
 data "aws_partition" "current" {}
+data "aws_caller_identity" "current" {}
 
 # Used to scope the EFS NFS security group ingress to within the VPC
 data "aws_vpc" "selected" {
@@ -73,6 +74,138 @@ locals {
   ) : ""
 
   efs_dns_name = local.effective_efs_id != "" ? "${local.effective_efs_id}.efs.${var.aws_region}.amazonaws.com" : ""
+}
+
+# ---------------------------------------------------------------------------
+# RAG: OpenSearch Serverless vector store + S3 document bucket
+# All resources conditional on enable_rag=true.
+# ---------------------------------------------------------------------------
+
+# Encryption policy — required before collection creation.
+resource "aws_opensearchserverless_security_policy" "rag_enc" {
+  count = var.enable_rag ? 1 : 0
+  name  = "mmapi-rag-enc"
+  type  = "encryption"
+  policy = jsonencode({
+    Rules = [{
+      ResourceType = "collection"
+      Resource     = ["collection/mmapi-rag"]
+    }]
+    AWSOwnedKey = true
+  })
+}
+
+# VPCE — private access from within the VPC only (no public endpoint).
+resource "aws_security_group" "opensearch" {
+  count       = var.enable_rag ? 1 : 0
+  name_prefix = "mmapi-aoss-"
+  description = "Allow HTTPS to OpenSearch Serverless VPCE from within VPC"
+  vpc_id      = var.vpc_id
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [data.aws_vpc.selected.cidr_block]
+    description = "HTTPS from VPC"
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(var.common_tags, { Name = "mmapi-aoss-vpce" })
+}
+
+resource "aws_opensearchserverless_vpc_endpoint" "rag" {
+  count              = var.enable_rag ? 1 : 0
+  name               = "mmapi-rag-vpce"
+  vpc_id             = var.vpc_id
+  subnet_ids         = var.subnet_ids
+  security_group_ids = [aws_security_group.opensearch[0].id]
+}
+
+# Network policy — restrict collection access to the VPCE only.
+resource "aws_opensearchserverless_security_policy" "rag_net" {
+  count = var.enable_rag ? 1 : 0
+  name  = "mmapi-rag-net"
+  type  = "network"
+  policy = jsonencode([{
+    Rules = [
+      { ResourceType = "collection", Resource = ["collection/mmapi-rag"] },
+      { ResourceType = "dashboard", Resource = ["collection/mmapi-rag"] },
+    ]
+    AllowFromPublic = false
+    SourceVPCEs     = [aws_opensearchserverless_vpc_endpoint.rag[0].id]
+  }])
+}
+
+# Vector search collection.
+resource "aws_opensearchserverless_collection" "rag" {
+  count = var.enable_rag ? 1 : 0
+  name  = "mmapi-rag"
+  type  = "VECTORSEARCH"
+
+  depends_on = [
+    aws_opensearchserverless_security_policy.rag_enc,
+    aws_opensearchserverless_security_policy.rag_net,
+  ]
+
+  tags = merge(var.common_tags, { Name = "mmapi-rag" })
+}
+
+# Data access policy — grants the instance role full index CRUD on the collection.
+resource "aws_opensearchserverless_access_policy" "rag" {
+  count = var.enable_rag ? 1 : 0
+  name  = "mmapi-rag-access"
+  type  = "data"
+  policy = jsonencode([{
+    Rules = [
+      {
+        ResourceType = "collection"
+        Resource     = ["collection/mmapi-rag"]
+        Permission   = ["aoss:CreateCollectionItems", "aoss:DeleteCollectionItems", "aoss:UpdateCollectionItems", "aoss:DescribeCollectionItems"]
+      },
+      {
+        ResourceType = "index"
+        Resource     = ["index/mmapi-rag/*"]
+        Permission   = ["aoss:CreateIndex", "aoss:DeleteIndex", "aoss:UpdateIndex", "aoss:DescribeIndex", "aoss:ReadDocument", "aoss:WriteDocument"]
+      },
+    ]
+    Principal = [aws_iam_role.inference_instance_role.arn]
+  }])
+}
+
+# S3 bucket for raw source documents (optional ingestion staging area).
+resource "aws_s3_bucket" "rag_documents" {
+  count  = var.enable_rag ? 1 : 0
+  bucket = "mmapi-rag-docs-${data.aws_caller_identity.current.account_id}-${var.aws_region}"
+
+  tags = merge(var.common_tags, { Name = "mmapi-rag-documents" })
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "rag_documents" {
+  count  = var.enable_rag ? 1 : 0
+  bucket = aws_s3_bucket.rag_documents[0].id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "aws:kms"
+    }
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "rag_documents" {
+  count  = var.enable_rag ? 1 : 0
+  bucket = aws_s3_bucket.rag_documents[0].id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
 }
 
 # ---------------------------------------------------------------------------
@@ -264,6 +397,25 @@ resource "aws_iam_role_policy" "inference_instance_policy" {
           Action   = ["ssm:GetParameter"]
           Resource = "arn:${data.aws_partition.current.partition}:ssm:${var.aws_region}:*:parameter${var.hf_token_ssm_parameter}"
         }
+      ] : [],
+      var.enable_rag ? [
+        {
+          Sid      = "OpenSearchServerlessAccess"
+          Effect   = "Allow"
+          Action   = ["aoss:APIAccessAll"]
+          Resource = "arn:${data.aws_partition.current.partition}:aoss:${var.aws_region}:${data.aws_caller_identity.current.account_id}:collection/*"
+        }
+      ] : [],
+      var.enable_rag ? [
+        {
+          Sid    = "RAGDocumentsBucket"
+          Effect = "Allow"
+          Action = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"]
+          Resource = [
+            "arn:${data.aws_partition.current.partition}:s3:::mmapi-rag-docs-${data.aws_caller_identity.current.account_id}-${var.aws_region}",
+            "arn:${data.aws_partition.current.partition}:s3:::mmapi-rag-docs-${data.aws_caller_identity.current.account_id}-${var.aws_region}/*",
+          ]
+        }
       ] : []
     )
   })
@@ -354,6 +506,17 @@ resource "aws_launch_template" "model" {
     efs_dns_name           = local.efs_dns_name
     hf_token_ssm_parameter = var.hf_token_ssm_parameter
     aws_region             = var.aws_region
+    })) : each.value.runtime == "rag" ? base64encode(templatefile("${path.module}/user-data-rag.sh", {
+    model_id             = each.value.model_id
+    model_cache_mount    = "/mnt/model-cache/${each.key}"
+    enable_detailed_logs = var.enable_detailed_logging
+    enable_efs_cache     = var.enable_efs_cache
+    efs_dns_name         = local.efs_dns_name
+    opensearch_endpoint  = try(aws_opensearchserverless_collection.rag[0].collection_endpoint, "")
+    rag_index_name       = var.rag_index_name
+    alb_dns_name         = aws_lb.inference_api.dns_name
+    rag_inference_model  = var.rag_inference_model
+    aws_region           = var.aws_region
     })) : base64encode(templatefile("${path.module}/user-data-cpu.sh", {
     model_id             = each.value.model_id
     vllm_max_model_len   = each.value.vllm_max_model_len
@@ -390,6 +553,11 @@ resource "aws_launch_template" "model" {
     }
 
     # EFS: no precondition needed — the template creates EFS when efs_file_system_id is empty.
+
+    precondition {
+      condition     = each.value.runtime != "rag" || var.enable_rag
+      error_message = "runtime='rag' requires enable_rag=true."
+    }
   }
 }
 

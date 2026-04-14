@@ -269,6 +269,24 @@ variable "hf_token_ssm_parameter" {
   }
 }
 
+variable "enable_rag" {
+  description = "Deploy an OpenSearch Serverless vector store and RAG proxy service. When true, add a model pool with runtime='rag' to var.models to expose a retrieval-augmented chat endpoint."
+  type        = bool
+  default     = false
+}
+
+variable "rag_index_name" {
+  description = "OpenSearch index name used for knowledge-base vectors."
+  type        = string
+  default     = "knowledge-base"
+}
+
+variable "rag_inference_model" {
+  description = "Key in var.models to forward augmented prompts to. Must match an existing pool name (e.g. 'nemotron' or 'gemma_30b')."
+  type        = string
+  default     = "nemotron"
+}
+
 variable "common_tags" {
   description = "Common tags for all resources"
   type        = map(string)

@@ -30,6 +30,13 @@ model_cache_volume_size_gb = 300
 # To create: aws ssm put-parameter --name /nemotron/hf-token --type SecureString --value "hf_..."
 hf_token_ssm_parameter = ""
 
+# RAG knowledge base settings.
+# Set enable_rag=true to create an OpenSearch Serverless vector store and S3 document bucket.
+# Then add a pool with runtime="rag" to the models map below.
+enable_rag          = false
+rag_index_name      = "knowledge-base"
+rag_inference_model = "nemotron" # key in models map that handles generation
+
 enable_cloudwatch_detailed = true
 enable_detailed_logging    = true
 
@@ -108,4 +115,27 @@ models = {
     health_check_grace_period = 300
     capacity_rebalance        = false
   }
+
+  # ── RAG proxy (enable by uncommenting and setting enable_rag=true) ──────────
+  # Stateless FastAPI service: retrieves top-5 chunks from OpenSearch Serverless,
+  # augments the prompt, and forwards to the nemotron pool. Safe on Spot.
+  #
+  # rag_proxy = {
+  #   model_id      = "rag-proxy"   # not a real model; used as an identifier
+  #   runtime       = "rag"
+  #   instance_type = "c6i.2xlarge"
+  #   instance_overrides = [
+  #     { instance_type = "c6i.2xlarge",  weighted_capacity = 1 },
+  #     { instance_type = "c6i.4xlarge",  weighted_capacity = 1 },
+  #   ]
+  #   min_size                  = 1
+  #   max_size                  = 4
+  #   desired_capacity          = 1
+  #   scale_up_cpu              = 60
+  #   scale_down_cpu            = 20
+  #   health_check_grace_period = 300
+  #   capacity_rebalance        = true
+  #   path_prefix               = "/v1/rag"
+  #   health_check_path         = "/health"
+  # }
 }
