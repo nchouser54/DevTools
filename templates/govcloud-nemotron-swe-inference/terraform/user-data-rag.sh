@@ -16,6 +16,7 @@ RAG_INDEX_NAME="${rag_index_name}"
 ALB_DNS="${alb_dns_name}"
 RAG_INFERENCE_MODEL="${rag_inference_model}"
 AWS_REGION_VAL="${aws_region}"
+PATH_PREFIX="${path_prefix}"
 
 LOG_FILE="/var/log/rag-proxy-init.log"
 exec 1>>"$LOG_FILE"
@@ -28,7 +29,7 @@ echo "[$(date)] ==> OpenSearch: $OPENSEARCH_ENDPOINT | Index: $RAG_INDEX_NAME | 
 echo "[$(date)] ==> Updating system packages"
 apt-get update
 apt-get install -y --no-install-recommends \
-  curl wget ca-certificates jq python3 python3-pip python3-venv lsb-release
+  curl wget ca-certificates jq nginx python3 python3-pip python3-venv lsb-release
 
 # Mount model/embedding cache — EFS shared or per-instance EBS
 echo "[$(date)] ==> Setting up cache storage"
@@ -361,7 +362,7 @@ def chat_completions(req: ChatRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+    uvicorn.run(app, host="127.0.0.1", port=8001, log_level="info")
 RAG_EOF
 
 chmod +x /opt/rag-proxy.py
@@ -400,6 +401,37 @@ echo "[$(date)] ==> Starting RAG proxy service"
 systemctl daemon-reload
 systemctl enable rag-proxy
 systemctl start rag-proxy
+
+# Configure nginx to strip the per-model path prefix and reverse-proxy to the
+# RAG FastAPI service on port 8001. Without this /v1/rag/v1/chat/completions
+# would be forwarded as-is and FastAPI (serving at /v1/...) would return 404.
+cat > /etc/nginx/sites-available/model-api.conf << 'NGINX_EOF'
+server {
+    listen 8000;
+    server_name _;
+
+    location /health {
+        proxy_pass http://127.0.0.1:8001/health;
+        proxy_read_timeout 10s;
+    }
+
+    location ~* ^__PATH_PREFIX__/(.*)$ {
+        proxy_pass http://127.0.0.1:8001/$1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 300s;
+        proxy_buffering off;
+    }
+}
+NGINX_EOF
+
+sed -i "s|__PATH_PREFIX__|$PATH_PREFIX|g" /etc/nginx/sites-available/model-api.conf
+rm -f /etc/nginx/sites-enabled/default
+ln -sf /etc/nginx/sites-available/model-api.conf /etc/nginx/sites-enabled/model-api.conf
+echo "[$(date)] ==> Starting nginx reverse proxy (prefix: $PATH_PREFIX -> 127.0.0.1:8001)"
+nginx -t
+systemctl enable nginx
+systemctl restart nginx
 
 # Wait for the proxy to respond (OpenSearch collection may still be activating;
 # the proxy retries internally for up to 15 minutes).

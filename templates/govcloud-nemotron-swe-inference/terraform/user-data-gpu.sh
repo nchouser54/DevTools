@@ -19,6 +19,7 @@ EFS_DNS_NAME="${efs_dns_name}"
 TENSOR_PARALLEL_SIZE="${tensor_parallel_size}"
 HF_TOKEN_SSM_PARAMETER="${hf_token_ssm_parameter}"
 AWS_REGION="${aws_region}"
+PATH_PREFIX="${path_prefix}"
 
 LOG_FILE="/var/log/nemotron-init.log"
 
@@ -57,6 +58,7 @@ apt-get install -y --no-install-recommends \
   ca-certificates \
   gnupg \
   lsb-release \
+  nginx \
   jq
 
 # Install Docker
@@ -158,7 +160,7 @@ docker run -d \
   --gpus all \
   --runtime nvidia \
   --restart unless-stopped \
-  -p 8000:8000 \
+  -p 127.0.0.1:8001:8000 \
   -v "$MODEL_CACHE_MOUNT/huggingface:/root/.cache/huggingface" \
   -e HUGGINGFACE_HUB_CACHE="$MODEL_CACHE_MOUNT/huggingface" \
   -e HF_TOKEN="$HF_TOKEN" \
@@ -173,6 +175,42 @@ docker run -d \
   $VLLM_EXTRA_ARGS \
   --disable-log-requests \
   --port 8000
+
+# Configure nginx to strip the per-model path prefix and reverse-proxy to vLLM.
+# The ALB routes by path prefix and forwards the full path; e.g. a request to
+# /v1/models/nemotron/v1/chat/completions hits this instance. Without nginx the
+# request reaches vLLM as-is and vLLM returns 404 (it only serves /v1/...).
+# nginx rewrites: /v1/models/nemotron/v1/chat/completions -> /v1/chat/completions
+cat > /etc/nginx/sites-available/model-api.conf << 'NGINX_EOF'
+server {
+    listen 8000;
+    server_name _;
+
+    # Direct health check — no prefix needed; used by ALB and boot scripts
+    location /health {
+        proxy_pass http://127.0.0.1:8001/health;
+        proxy_read_timeout 10s;
+    }
+
+    # Strip the path prefix and forward the remainder to vLLM on port 8001
+    location ~* ^__PATH_PREFIX__/(.*)$ {
+        proxy_pass http://127.0.0.1:8001/$1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+        proxy_buffering off;
+    }
+}
+NGINX_EOF
+
+sed -i "s|__PATH_PREFIX__|$PATH_PREFIX|g" /etc/nginx/sites-available/model-api.conf
+rm -f /etc/nginx/sites-enabled/default
+ln -sf /etc/nginx/sites-available/model-api.conf /etc/nginx/sites-enabled/model-api.conf
+echo "[$(date)] ==> Starting nginx reverse proxy (prefix: $PATH_PREFIX -> 127.0.0.1:8001)"
+nginx -t
+systemctl enable nginx
+systemctl restart nginx
 
 # Wait for vLLM to be ready (up to 20 minutes for model loading)
 echo "[$(date)] ==> Waiting for vLLM to be ready..."

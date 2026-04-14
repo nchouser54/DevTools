@@ -514,6 +514,7 @@ resource "aws_launch_template" "model" {
     efs_dns_name           = local.efs_dns_name
     hf_token_ssm_parameter = var.hf_token_ssm_parameter
     aws_region             = var.aws_region
+    path_prefix            = each.value.path_prefix
     })) : each.value.runtime == "rag" ? base64encode(templatefile("${path.module}/user-data-rag.sh", {
     model_id             = each.value.model_id
     model_cache_mount    = "/mnt/model-cache/${each.key}"
@@ -525,6 +526,7 @@ resource "aws_launch_template" "model" {
     alb_dns_name         = aws_lb.inference_api.dns_name
     rag_inference_model  = var.rag_inference_model
     aws_region           = var.aws_region
+    path_prefix          = each.value.path_prefix
     })) : base64encode(templatefile("${path.module}/user-data-cpu.sh", {
     model_id             = each.value.model_id
     vllm_max_model_len   = each.value.vllm_max_model_len
@@ -533,6 +535,7 @@ resource "aws_launch_template" "model" {
     enable_detailed_logs = var.enable_detailed_logging
     enable_efs_cache     = var.enable_efs_cache
     efs_dns_name         = local.efs_dns_name
+    path_prefix          = each.value.path_prefix
   }))
 
   tag_specifications {

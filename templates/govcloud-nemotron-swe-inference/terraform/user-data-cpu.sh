@@ -11,6 +11,7 @@ MODEL_CACHE_MOUNT="${model_cache_mount}"
 ENABLE_DETAILED_LOGS="${enable_detailed_logs}"
 ENABLE_EFS_CACHE="${enable_efs_cache}"
 EFS_DNS_NAME="${efs_dns_name}"
+PATH_PREFIX="${path_prefix}"
 
 LOG_FILE="/var/log/nemotron-init.log"
 
@@ -32,6 +33,7 @@ apt-get install -y --no-install-recommends \
   build-essential \
   cmake \
   jq \
+  nginx \
   htop
 
 # Install Docker
@@ -246,7 +248,7 @@ def chat_completions():
         return {"error": str(e)}, 500
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000, debug=False)
+    app.run(host="127.0.0.1", port=8001, debug=False)
 
 WRAPPER_EOF
 
@@ -277,10 +279,41 @@ StandardError=append:/var/log/api-wrapper.log
 WantedBy=multi-user.target
 SERVICE_EOF
 
-echo "[$(date)] ==> Starting API wrapper service on port 8000"
+echo "[$(date)] ==> Starting API wrapper service on port 8001"
 systemctl daemon-reload
 systemctl enable api-wrapper
 systemctl start api-wrapper
+
+# Configure nginx to strip the per-model path prefix and reverse-proxy to the
+# Ollama API wrapper on port 8001. Without this the ALB-forwarded full path
+# (e.g. /v1/models/cpu-fallback/v1/chat/completions) would 404 in Flask.
+cat > /etc/nginx/sites-available/model-api.conf << 'NGINX_EOF'
+server {
+    listen 8000;
+    server_name _;
+
+    location /health {
+        proxy_pass http://127.0.0.1:8001/health;
+        proxy_read_timeout 10s;
+    }
+
+    location ~* ^__PATH_PREFIX__/(.*)$ {
+        proxy_pass http://127.0.0.1:8001/$1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 300s;
+        proxy_buffering off;
+    }
+}
+NGINX_EOF
+
+sed -i "s|__PATH_PREFIX__|$PATH_PREFIX|g" /etc/nginx/sites-available/model-api.conf
+rm -f /etc/nginx/sites-enabled/default
+ln -sf /etc/nginx/sites-available/model-api.conf /etc/nginx/sites-enabled/model-api.conf
+echo "[$(date)] ==> Starting nginx reverse proxy (prefix: $PATH_PREFIX -> 127.0.0.1:8001)"
+nginx -t
+systemctl enable nginx
+systemctl restart nginx
 
 # Wait for API to be ready
 echo "[$(date)] ==> Waiting for API wrapper to be ready..."
