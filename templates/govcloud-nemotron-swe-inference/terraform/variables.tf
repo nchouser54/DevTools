@@ -248,7 +248,7 @@ variable "enable_efs_cache" {
 }
 
 variable "efs_file_system_id" {
-  description = "EFS file system ID (fs-xxxxxxxx) to use as shared model cache. Required when enable_efs_cache=true. Provide an existing EFS — the template does not create one."
+  description = "Optional BYO EFS file system ID (fs-xxxxxxxx). When enable_efs_cache=true and this is empty, the template creates and manages an EFS file system and mount targets automatically. When set, the template uses the existing EFS and verifies it exists at plan time."
   type        = string
   default     = ""
 

@@ -14,6 +14,11 @@ provider "aws" {
 
 data "aws_partition" "current" {}
 
+# Used to scope the EFS NFS security group ingress to within the VPC
+data "aws_vpc" "selected" {
+  id = var.vpc_id
+}
+
 locals {
   models = {
     for name, cfg in var.models : name => {
@@ -57,11 +62,76 @@ locals {
   effective_instance_security_group_ids = var.manage_security_groups ? [aws_security_group.nemotron_instances[0].id] : var.instance_security_group_ids
   selected_ami_id                       = length(trimspace(var.ami_id)) > 0 ? var.ami_id : data.aws_ami.ubuntu.id
 
-  # EFS shared model cache DNS (resolved per region; empty when EFS cache is disabled)
-  efs_dns_name = var.enable_efs_cache ? "${var.efs_file_system_id}.efs.${var.aws_region}.amazonaws.com" : ""
+  # EFS: create when enable_efs_cache=true and no BYO ID is supplied; BYO when ID is provided.
+  create_efs = var.enable_efs_cache && length(trimspace(var.efs_file_system_id)) == 0
+  byo_efs    = var.enable_efs_cache && length(trimspace(var.efs_file_system_id)) > 0
+
+  # Resolves to the managed or BYO file system ID. try() handles the count=0 case safely.
+  effective_efs_id = var.enable_efs_cache ? try(
+    aws_efs_file_system.model_cache[0].id,
+    data.aws_efs_file_system.byo[0].file_system_id
+  ) : ""
+
+  efs_dns_name = local.effective_efs_id != "" ? "${local.effective_efs_id}.efs.${var.aws_region}.amazonaws.com" : ""
 }
 
+# ---------------------------------------------------------------------------
+# EFS shared model-weights cache
+# ---------------------------------------------------------------------------
+
+# Verify a BYO EFS exists — fails at plan time if the ID is wrong.
+data "aws_efs_file_system" "byo" {
+  count          = local.byo_efs ? 1 : 0
+  file_system_id = var.efs_file_system_id
+}
+
+# Create the EFS file system when no BYO ID is provided.
+resource "aws_efs_file_system" "model_cache" {
+  count            = local.create_efs ? 1 : 0
+  encrypted        = true
+  performance_mode = "generalPurpose"
+  throughput_mode  = "elastic"
+
+  tags = merge(var.common_tags, { Name = "mmapi-model-cache" })
+}
+
+# NFS security group for EFS mount targets (allows port 2049 from within the VPC).
+resource "aws_security_group" "efs" {
+  count       = var.enable_efs_cache ? 1 : 0
+  name_prefix = "mmapi-efs-"
+  description = "Allow NFS from inference instances to EFS mount targets"
+  vpc_id      = var.vpc_id
+
+  ingress {
+    from_port   = 2049
+    to_port     = 2049
+    protocol    = "tcp"
+    cidr_blocks = [data.aws_vpc.selected.cidr_block]
+    description = "NFS access from within VPC"
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = merge(var.common_tags, { Name = "mmapi-efs-nfs" })
+}
+
+# One mount target per subnet — enables HA access from all AZs.
+resource "aws_efs_mount_target" "model_cache" {
+  for_each = local.create_efs ? toset(var.subnet_ids) : toset([])
+
+  file_system_id  = aws_efs_file_system.model_cache[0].id
+  subnet_id       = each.value
+  security_groups = [aws_security_group.efs[0].id]
+}
+
+# ---------------------------------------------------------------------------
 # Security Groups
+# ---------------------------------------------------------------------------
 resource "aws_security_group" "nemotron_instances" {
   count = var.manage_security_groups ? 1 : 0
 
@@ -184,7 +254,7 @@ resource "aws_iam_role_policy" "inference_instance_policy" {
             "elasticfilesystem:ClientRootAccess",
             "elasticfilesystem:DescribeMountTargets"
           ]
-          Resource = "arn:${data.aws_partition.current.partition}:elasticfilesystem:${var.aws_region}:*:file-system/${var.efs_file_system_id}"
+          Resource = "arn:${data.aws_partition.current.partition}:elasticfilesystem:${var.aws_region}:*:file-system/${local.effective_efs_id}"
         }
       ] : [],
       length(trimspace(var.hf_token_ssm_parameter)) > 0 ? [
@@ -319,10 +389,7 @@ resource "aws_launch_template" "model" {
       error_message = "Provide instance_security_group_ids when manage_security_groups=false."
     }
 
-    precondition {
-      condition     = !var.enable_efs_cache || length(trimspace(var.efs_file_system_id)) > 0
-      error_message = "efs_file_system_id must be set to a valid EFS ID (fs-xxxxxxxx) when enable_efs_cache=true."
-    }
+    # EFS: no precondition needed — the template creates EFS when efs_file_system_id is empty.
   }
 }
 
