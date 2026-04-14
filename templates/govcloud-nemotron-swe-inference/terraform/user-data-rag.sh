@@ -366,8 +366,6 @@ RAG_EOF
 
 chmod +x /opt/rag-proxy.py
 
-# Set FASTEMBED_CACHE_PATH so the embedding model is stored on EFS and shared
-# across Spot replacements (same caching benefit as model weights).
 cat > /etc/systemd/system/rag-proxy.service << 'SERVICE_EOF'
 [Unit]
 Description=RAG Proxy — OpenAI-compat chat with OpenSearch retrieval and Bedrock Titan embeddings
@@ -394,7 +392,7 @@ INDEX_NAME=${rag_index_name}
 ALB_DNS=${alb_dns_name}
 INFERENCE_MODEL=${rag_inference_model}
 AWS_REGION=${aws_region}
-FASTEMBED_CACHE_PATH=${model_cache_mount}/fastembed
+
 ENVEOF
 chmod 600 /etc/rag-proxy.env
 
