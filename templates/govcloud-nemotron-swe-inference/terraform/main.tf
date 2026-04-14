@@ -186,6 +186,14 @@ resource "aws_iam_role_policy" "inference_instance_policy" {
           ]
           Resource = "arn:${data.aws_partition.current.partition}:elasticfilesystem:${var.aws_region}:*:file-system/${var.efs_file_system_id}"
         }
+      ] : [],
+      length(trimspace(var.hf_token_ssm_parameter)) > 0 ? [
+        {
+          Sid      = "HFTokenSSMRead"
+          Effect   = "Allow"
+          Action   = ["ssm:GetParameter"]
+          Resource = "arn:${data.aws_partition.current.partition}:ssm:${var.aws_region}:*:parameter${var.hf_token_ssm_parameter}"
+        }
       ] : []
     )
   })
@@ -264,16 +272,18 @@ resource "aws_launch_template" "model" {
   }
 
   user_data = each.value.runtime == "gpu" ? base64encode(templatefile("${path.module}/user-data-gpu.sh", {
-    model_id             = each.value.model_id
-    vllm_max_model_len   = each.value.vllm_max_model_len
-    vllm_max_num_seqs    = each.value.vllm_max_num_seqs
-    vllm_gpu_memory_util = each.value.vllm_gpu_memory_utilization
-    tensor_parallel_size = each.value.tensor_parallel_size
-    vllm_extra_args      = each.value.vllm_extra_args
-    model_cache_mount    = "/mnt/model-cache/${each.key}"
-    enable_detailed_logs = var.enable_detailed_logging
-    enable_efs_cache     = var.enable_efs_cache
-    efs_dns_name         = local.efs_dns_name
+    model_id               = each.value.model_id
+    vllm_max_model_len     = each.value.vllm_max_model_len
+    vllm_max_num_seqs      = each.value.vllm_max_num_seqs
+    vllm_gpu_memory_util   = each.value.vllm_gpu_memory_utilization
+    tensor_parallel_size   = each.value.tensor_parallel_size
+    vllm_extra_args        = each.value.vllm_extra_args
+    model_cache_mount      = "/mnt/model-cache/${each.key}"
+    enable_detailed_logs   = var.enable_detailed_logging
+    enable_efs_cache       = var.enable_efs_cache
+    efs_dns_name           = local.efs_dns_name
+    hf_token_ssm_parameter = var.hf_token_ssm_parameter
+    aws_region             = var.aws_region
     })) : base64encode(templatefile("${path.module}/user-data-cpu.sh", {
     model_id             = each.value.model_id
     vllm_max_model_len   = each.value.vllm_max_model_len

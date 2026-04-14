@@ -258,6 +258,17 @@ variable "efs_file_system_id" {
   }
 }
 
+variable "hf_token_ssm_parameter" {
+  description = "SSM Parameter Store path holding the HuggingFace token (SecureString). When set, instances fetch the token at boot and pass it to vLLM. Required for gated models. Leave empty for public models. Example: /nemotron/hf-token"
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.hf_token_ssm_parameter == "" || can(regex("^/", var.hf_token_ssm_parameter))
+    error_message = "hf_token_ssm_parameter must start with '/' (e.g. /nemotron/hf-token)."
+  }
+}
+
 variable "common_tags" {
   description = "Common tags for all resources"
   type        = map(string)

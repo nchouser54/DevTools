@@ -25,6 +25,11 @@ spot_instance_pools      = 3
 root_volume_size_gb        = 150 # DL Base GPU AMI root snapshot ~100 GB; Docker + vLLM image add ~30 GB
 model_cache_volume_size_gb = 200
 
+# SSM Parameter Store path for the HuggingFace token (SecureString).
+# Required for gated models. Leave empty for public checkpoints.
+# To create: aws ssm put-parameter --name /nemotron/hf-token --type SecureString --value "hf_..."
+hf_token_ssm_parameter = ""
+
 enable_cloudwatch_detailed = true
 enable_detailed_logging    = true
 

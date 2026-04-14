@@ -17,6 +17,8 @@ ENABLE_DETAILED_LOGS="${enable_detailed_logs}"
 ENABLE_EFS_CACHE="${enable_efs_cache}"
 EFS_DNS_NAME="${efs_dns_name}"
 TENSOR_PARALLEL_SIZE="${tensor_parallel_size}"
+HF_TOKEN_SSM_PARAMETER="${hf_token_ssm_parameter}"
+AWS_REGION="${aws_region}"
 
 LOG_FILE="/var/log/nemotron-init.log"
 
@@ -27,6 +29,24 @@ exec 2>&1
 echo "[$(date)] ==> Starting Nemotron GPU User Data Script"
 echo "Model: $MODEL_ID"
 echo "vLLM Config: max_model_len=$VLLM_MAX_MODEL_LEN, max_num_seqs=$VLLM_MAX_NUM_SEQS"
+
+# Fetch HuggingFace token from SSM Parameter Store.
+# The DL Base AMI ships with AWS CLI pre-installed; no extra install needed.
+# If the parameter name is empty, HF_TOKEN stays empty (fine for public models).
+HF_TOKEN=""
+if [[ -n "$HF_TOKEN_SSM_PARAMETER" ]]; then
+  echo "[$(date)] ==> Fetching HF_TOKEN from SSM: $HF_TOKEN_SSM_PARAMETER"
+  HF_TOKEN=$(aws ssm get-parameter \
+    --name "$HF_TOKEN_SSM_PARAMETER" \
+    --with-decryption \
+    --query Parameter.Value \
+    --output text \
+    --region "$AWS_REGION" 2>/dev/null) || {
+    echo "[$(date)] ==> WARNING: Failed to fetch HF_TOKEN from SSM — proceeding without token" >&2
+    HF_TOKEN=""
+  }
+  echo "[$(date)] ==> HF_TOKEN fetched successfully"
+fi
 
 # Update system
 echo "[$(date)] ==> Updating system packages"
@@ -141,7 +161,7 @@ docker run -d \
   -p 8000:8000 \
   -v "$MODEL_CACHE_MOUNT/huggingface:/root/.cache/huggingface" \
   -e HUGGINGFACE_HUB_CACHE="$MODEL_CACHE_MOUNT/huggingface" \
-  -e HF_TOKEN="" \
+  -e HF_TOKEN="$HF_TOKEN" \
   vllm/vllm-openai:latest \
   --model "$MODEL_ID" \
   --max-model-len $VLLM_MAX_MODEL_LEN \
