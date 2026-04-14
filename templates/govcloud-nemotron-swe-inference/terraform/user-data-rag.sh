@@ -78,28 +78,28 @@ else
   fi
 fi
 
-mkdir -p "$MODEL_CACHE_MOUNT/fastembed"
+mkdir -p "$MODEL_CACHE_MOUNT"
 chmod 777 "$MODEL_CACHE_MOUNT"
 
-# Install Python dependencies in a venv (PEP 668 safe)
+# Install Python dependencies in a venv (PEP 668 safe).
+# No local embedding model download needed — embeddings are called via Bedrock Titan API.
 echo "[$(date)] ==> Installing Python dependencies"
 python3 -m venv /opt/rag-venv
 /opt/rag-venv/bin/pip install --quiet --upgrade pip
-# fastembed downloads ~250 MB bge-small-en-v1.5 on first run; cached to EFS thereafter.
 /opt/rag-venv/bin/pip install --quiet \
   "fastapi==0.115.0" \
   "uvicorn[standard]==0.30.6" \
   "httpx==0.27.0" \
   "opensearch-py==2.7.1" \
   "requests-aws4auth==1.3.1" \
-  "boto3>=1.34" \
-  "fastembed==0.4.1"
+  "boto3>=1.34"
 
 # Write the RAG proxy application
 cat > /opt/rag-proxy.py << 'RAG_EOF'
 #!/usr/bin/env python3
 """
 RAG proxy — OpenAI-compatible chat completions with retrieval augmentation.
+Embeddings use Amazon Titan Embeddings v2 via Bedrock (FedRAMP High, no model download).
 
 Endpoints:
   POST /v1/chat/completions  — Retrieve top-K context chunks, augment prompt, call vLLM
@@ -117,8 +117,7 @@ from typing import Optional
 import boto3
 import httpx
 from fastapi import FastAPI, HTTPException
-from fastembed import TextEmbedding
-from opensearchpy import AWSV4SignerAsyncAuth, OpenSearch, RequestsHttpConnection
+from opensearchpy import OpenSearch, RequestsHttpConnection
 from pydantic import BaseModel
 from requests_aws4auth import AWS4Auth
 
@@ -128,11 +127,13 @@ INDEX_NAME          = os.environ.get("INDEX_NAME", "knowledge-base")
 ALB_DNS             = os.environ["ALB_DNS"]
 INFERENCE_MODEL     = os.environ.get("INFERENCE_MODEL", "nemotron")
 AWS_REGION          = os.environ.get("AWS_REGION", "us-gov-west-1")
-EMBED_CACHE_DIR     = os.environ.get("FASTEMBED_CACHE_PATH", "/mnt/model-cache/fastembed")
+# Bedrock Titan Embeddings v2 — 1024-dim, FedRAMP High authorized in us-gov-west-1.
+# Uses instance IAM role credentials; no API key needed.
+TITAN_MODEL_ID      = "amazon.titan-embed-text-v2:0"
 TOP_K               = int(os.environ.get("RAG_TOP_K", "5"))
 CHUNK_SIZE          = int(os.environ.get("RAG_CHUNK_SIZE", "400"))   # words
 CHUNK_OVERLAP       = int(os.environ.get("RAG_CHUNK_OVERLAP", "50")) # words
-EMBED_DIM           = 384  # matches BAAI/bge-small-en-v1.5
+EMBED_DIM           = 1024  # Titan Embeddings v2 output dimension
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("rag-proxy")
@@ -157,11 +158,8 @@ os_client = OpenSearch(
     pool_maxsize=20,
 )
 
-# ─── Embedding model (CPU, cached to EFS) ────────────────────────────────────
-embed_model = TextEmbedding(
-    model_name="BAAI/bge-small-en-v1.5",
-    cache_dir=EMBED_CACHE_DIR,
-)
+# ─── Bedrock client for Titan Embeddings v2 ──────────────────────────────────
+bedrock = boto3.client("bedrock-runtime", region_name=AWS_REGION)
 
 # ─── httpx client for upstream vLLM calls ────────────────────────────────────
 http = httpx.Client(timeout=180.0)
@@ -205,7 +203,17 @@ def _ensure_index():
 
 
 def _embed(texts: list) -> list:
-    return [v.tolist() for v in embed_model.embed(texts)]
+    """Embed a list of texts using Bedrock Titan Embeddings v2."""
+    results = []
+    for text in texts:
+        resp = bedrock.invoke_model(
+            modelId=TITAN_MODEL_ID,
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps({"inputText": text, "dimensions": EMBED_DIM, "normalize": True}),
+        )
+        results.append(json.loads(resp["body"].read())["embedding"])
+    return results
 
 
 def _chunk(text: str) -> list:
@@ -362,13 +370,12 @@ chmod +x /opt/rag-proxy.py
 # across Spot replacements (same caching benefit as model weights).
 cat > /etc/systemd/system/rag-proxy.service << 'SERVICE_EOF'
 [Unit]
-Description=RAG Proxy — OpenAI-compat chat with OpenSearch retrieval
+Description=RAG Proxy — OpenAI-compat chat with OpenSearch retrieval and Bedrock Titan embeddings
 After=network.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-Environment=FASTEMBED_CACHE_PATH=/mnt/model-cache/fastembed
 EnvironmentFile=-/etc/rag-proxy.env
 ExecStart=/opt/rag-venv/bin/python3 /opt/rag-proxy.py
 Restart=always

@@ -400,6 +400,14 @@ resource "aws_iam_role_policy" "inference_instance_policy" {
       ] : [],
       var.enable_rag ? [
         {
+          Sid      = "BedrockTitanEmbeddings"
+          Effect   = "Allow"
+          Action   = ["bedrock:InvokeModel"]
+          Resource = "arn:${data.aws_partition.current.partition}:bedrock:${var.aws_region}::foundation-model/amazon.titan-embed-text-v2:0"
+        }
+      ] : [],
+      var.enable_rag ? [
+        {
           Sid      = "OpenSearchServerlessAccess"
           Effect   = "Allow"
           Action   = ["aoss:APIAccessAll"]
