@@ -112,37 +112,39 @@ variable "models" {
     vllm_max_num_seqs           = optional(number, 32)
     vllm_gpu_memory_utilization = optional(number, 0.90)
     tensor_parallel_size        = optional(number, 1)
+    vllm_extra_args             = optional(string, "")
     path_prefix                 = optional(string, "")
     health_check_path           = optional(string, "/health")
   }))
 
   default = {
     nemotron = {
-      # Nemotron-3-405B requires ~810 GB VRAM at fp16. Minimum viable instance is
-      # p4d.24xlarge (8× A100 80GB = 640 GB) with AWQ/GPTQ quantization, or
-      # p5.48xlarge (8× H100 80GB = 640 GB) for better throughput.
-      # tensor_parallel_size must equal the number of GPUs on the instance.
-      model_id      = "nvidia/Nemotron-3-Super-Agentic-SWE-405B-Instruct"
+      # REAP 25%-pruned MoE checkpoint: 92B effective params at BF16 ≈ 184 GB.
+      # Fits on g6.48xlarge (8× L40S / Ada SM 8.9, 384 GB) without quantization.
+      # ~25 GB/GPU headroom after weights for KV cache; add --quantization fp8 to
+      # vllm_extra_args if you need larger context or more concurrent sequences.
+      # Pruning method: arXiv:2510.13999. Community draft — not an NVIDIA release.
+      # For production, swap model_id for a verified checkpoint and benchmark quality.
+      model_id      = "0xSero/NVIDIA-Nemotron-3-Super-120B-A12B-BF16-REAP-25pct-draft"
       runtime       = "gpu"
-      instance_type = "p4d.24xlarge"
+      instance_type = "g6.48xlarge"
       instance_overrides = [
-        { instance_type = "p4d.24xlarge", weighted_capacity = 1 },
-        { instance_type = "p5.48xlarge", weighted_capacity = 1 }
+        { instance_type = "g6.48xlarge", weighted_capacity = 1 },
+        { instance_type = "p4d.24xlarge", weighted_capacity = 1 }
       ]
-      min_size             = 1
-      max_size             = 4
-      desired_capacity     = 1
-      scale_up_cpu         = 75
-      scale_down_cpu       = 30
-      tensor_parallel_size = 8
-      # 405B needs more context budget; tune down if OOM
-      vllm_max_model_len          = 4096
-      vllm_max_num_seqs           = 8
-      vllm_gpu_memory_utilization = 0.95
-      # Allow 30 min for model to load from EFS/HF on first start
-      health_check_grace_period = 1800
-      path_prefix               = "/v1/models/nemotron"
-      health_check_path         = "/health"
+      min_size                    = 1
+      max_size                    = 4
+      desired_capacity            = 1
+      scale_up_cpu                = 75
+      scale_down_cpu              = 30
+      tensor_parallel_size        = 8
+      vllm_max_model_len          = 16384
+      vllm_max_num_seqs           = 32
+      vllm_gpu_memory_utilization = 0.90
+      vllm_extra_args             = ""
+      health_check_grace_period   = 1200
+      path_prefix                 = "/v1/models/nemotron"
+      health_check_path           = "/health"
     }
     gemma_30b = {
       # Gemma-4-30B requires ~60 GB VRAM at fp16 (fits on 4× L4 = 96 GB with headroom).
@@ -151,7 +153,8 @@ variable "models" {
       runtime       = "gpu"
       instance_type = "g6.12xlarge"
       instance_overrides = [
-        { instance_type = "g6.12xlarge", weighted_capacity = 1 }
+        { instance_type = "g6.12xlarge", weighted_capacity = 1 },
+        { instance_type = "g5.12xlarge", weighted_capacity = 1 }
       ]
       min_size                    = 1
       max_size                    = 4
@@ -162,6 +165,7 @@ variable "models" {
       vllm_max_model_len          = 8192
       vllm_max_num_seqs           = 32
       vllm_gpu_memory_utilization = 0.90
+      vllm_extra_args             = ""
       path_prefix                 = "/v1/models/gemma-30b"
       health_check_path           = "/health"
     }

@@ -8,6 +8,7 @@ MODEL_ID="${model_id}"
 VLLM_MAX_MODEL_LEN="${vllm_max_model_len}"
 VLLM_MAX_NUM_SEQS="${vllm_max_num_seqs}"
 VLLM_GPU_MEMORY_UTIL="${vllm_gpu_memory_util}"
+VLLM_EXTRA_ARGS="${vllm_extra_args}"
 MODEL_CACHE_MOUNT="${model_cache_mount}"
 ENABLE_DETAILED_LOGS="${enable_detailed_logs}"
 ENABLE_EFS_CACHE="${enable_efs_cache}"
@@ -144,6 +145,7 @@ docker run -d \
   --tensor-parallel-size $TENSOR_PARALLEL_SIZE \
   --dtype auto \
   --enable-prefix-caching \
+  $VLLM_EXTRA_ARGS \
   --disable-log-requests \
   --port 8000
 

@@ -38,22 +38,29 @@ common_tags = {
 # Multi-model map: each key creates its own launch template + ASG + target group + route.
 models = {
   nemotron = {
-    model_id      = "nvidia/Nemotron-3-Super-Agentic-SWE-405B-Instruct"
+    # REAP 25%-pruned MoE checkpoint (community research, not an NVIDIA release).
+    # 92B effective params at BF16 ≈ 184 GB — fits on g6.48xlarge (8× L40S, 384 GB)
+    # without any quantization. Pruning method: arXiv:2510.13999.
+    # To recover more KV-cache headroom, add: vllm_extra_args = "--quantization fp8"
+    # (FP8 is supported on L40S / Ada SM 8.9).
+    model_id      = "0xSero/NVIDIA-Nemotron-3-Super-120B-A12B-BF16-REAP-25pct-draft"
     runtime       = "gpu"
-    instance_type = "g6.xlarge"
+    instance_type = "g6.48xlarge"
     instance_overrides = [
-      { instance_type = "g6.xlarge", weighted_capacity = 1 },
-      { instance_type = "g6.2xlarge", weighted_capacity = 2 },
-      { instance_type = "g6.12xlarge", weighted_capacity = 8 }
+      { instance_type = "g6.48xlarge", weighted_capacity = 1 },
+      { instance_type = "p4d.24xlarge", weighted_capacity = 1 } # fallback if g6.48xl Spot unavailable
     ]
-    min_size                    = 2
-    max_size                    = 8
-    desired_capacity            = 3
+    min_size                    = 1
+    max_size                    = 4
+    desired_capacity            = 1
     scale_up_cpu                = 75
     scale_down_cpu              = 30
-    vllm_max_model_len          = 8192
+    tensor_parallel_size        = 8
+    vllm_max_model_len          = 16384 # generous context — 25GB/GPU remaining after weights
     vllm_max_num_seqs           = 32
     vllm_gpu_memory_utilization = 0.90
+    vllm_extra_args             = ""
+    health_check_grace_period   = 1200 # MoE loads faster than dense 405B
     path_prefix                 = "/v1/models/nemotron"
     health_check_path           = "/health"
   }
@@ -61,10 +68,10 @@ models = {
   gemma_30b = {
     model_id      = "google/gemma-4-30b-it"
     runtime       = "gpu"
-    instance_type = "g6.xlarge"
+    instance_type = "g6.12xlarge"
     instance_overrides = [
-      { instance_type = "g6.xlarge", weighted_capacity = 1 },
-      { instance_type = "g6.2xlarge", weighted_capacity = 2 }
+      { instance_type = "g6.12xlarge", weighted_capacity = 1 },
+      { instance_type = "g5.12xlarge", weighted_capacity = 1 }
     ]
     min_size                    = 1
     max_size                    = 4

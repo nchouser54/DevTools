@@ -53,7 +53,10 @@ models = {
   # with quantization (AWQ/GPTQ), or p5.48xlarge (8× H100 80GB) for better throughput.
   # tensor_parallel_size must equal the number of GPUs on the selected instance.
   nemotron = {
+    # Option A (max quality / expensive): full 405B (this default)
     model_id      = "nvidia/Nemotron-3-Super-Agentic-SWE-405B-Instruct"
+    # Option B (tone down): switch to a smaller or quantized checkpoint and tune below
+    # model_id      = "<your-quantized-or-smaller-model-id>"
     runtime       = "gpu"
     instance_type = "p4d.24xlarge"
     instance_overrides = [
@@ -69,6 +72,10 @@ models = {
     vllm_max_model_len          = 4096
     vllm_max_num_seqs           = 8
     vllm_gpu_memory_utilization = 0.95
+    # Optional extra vLLM args (examples):
+    # vllm_extra_args = "--quantization awq"
+    # vllm_extra_args = "--quantization awq --max-num-batched-tokens 4096"
+    vllm_extra_args = ""
     health_check_grace_period   = 1800
     path_prefix       = "/v1/models/nemotron"
     health_check_path = "/health"
@@ -81,7 +88,8 @@ models = {
     runtime       = "gpu"
     instance_type = "g6.12xlarge"
     instance_overrides = [
-      { instance_type = "g6.12xlarge", weighted_capacity = 1 }
+      { instance_type = "g6.12xlarge", weighted_capacity = 1 },
+      { instance_type = "g5.12xlarge", weighted_capacity = 1 }
     ]
     min_size                    = 1
     max_size                    = 4
@@ -92,6 +100,7 @@ models = {
     vllm_max_model_len          = 8192
     vllm_max_num_seqs           = 32
     vllm_gpu_memory_utilization = 0.90
+    vllm_extra_args             = ""
     path_prefix       = "/v1/models/gemma-30b"
     health_check_path = "/health"
   }
