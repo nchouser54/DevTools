@@ -73,9 +73,11 @@ models = {
     vllm_max_num_seqs           = 8
     vllm_gpu_memory_utilization = 0.95
     # Optional extra vLLM args (examples):
+    # For REAP/custom-code checkpoints, include --trust-remote-code.
+    # vllm_extra_args = "--trust-remote-code"
     # vllm_extra_args = "--quantization awq"
     # vllm_extra_args = "--quantization awq --max-num-batched-tokens 4096"
-    vllm_extra_args = ""
+    vllm_extra_args = "--trust-remote-code"
     health_check_grace_period   = 1800
     path_prefix       = "/v1/models/nemotron"
     health_check_path = "/health"

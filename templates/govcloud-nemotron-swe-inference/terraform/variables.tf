@@ -141,7 +141,7 @@ variable "models" {
       vllm_max_model_len          = 16384
       vllm_max_num_seqs           = 32
       vllm_gpu_memory_utilization = 0.90
-      vllm_extra_args             = ""
+      vllm_extra_args             = "--trust-remote-code"
       health_check_grace_period   = 1200
       path_prefix                 = "/v1/models/nemotron"
       health_check_path           = "/health"

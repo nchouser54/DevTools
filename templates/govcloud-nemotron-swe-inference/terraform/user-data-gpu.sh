@@ -1,8 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
-# Nemotron 3 SWE GPU User Data Script (g4dn.xlarge, p3.2xlarge)
-# Runs vLLM with NVIDIA GPU support
+# Nemotron 3 SWE GPU User Data Script
+# Supports g6.48xlarge (8× L40S), p4d.24xlarge family, and other NVIDIA GPU instances.
+# Uses AWS Deep Learning Base GPU AMI (Ubuntu 22.04/24.04) — CUDA and NVIDIA drivers
+# are pre-installed on that AMI, so this script only installs nvidia-container-toolkit
+# and Docker, then launches vLLM.
 
 MODEL_ID="${model_id}"
 VLLM_MAX_MODEL_LEN="${vllm_max_model_len}"
@@ -49,14 +52,16 @@ systemctl daemon-reload
 systemctl enable docker
 systemctl start docker
 
-# Install NVIDIA Docker runtime
-echo "[$(date)] ==> Installing NVIDIA Docker Runtime"
-distribution=$(. /etc/os-release; echo $ID$VERSION_ID)
-curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | apt-key add -
-curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | \
-  tee /etc/apt/sources.list.d/nvidia-docker.list > /dev/null
+# Install nvidia-container-toolkit (replaces deprecated nvidia-docker2)
+echo "[$(date)] ==> Installing nvidia-container-toolkit"
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \
+  gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+  sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+  tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
 apt-get update
-apt-get install -y --no-install-recommends nvidia-docker2
+apt-get install -y --no-install-recommends nvidia-container-toolkit
+nvidia-ctk runtime configure --runtime=docker
 systemctl restart docker
 
 # Mount model cache — EFS shared (persists across Spot replacements) or per-instance EBS

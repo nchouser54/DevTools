@@ -59,10 +59,11 @@ models = {
     vllm_max_model_len          = 16384 # generous context — 25GB/GPU remaining after weights
     vllm_max_num_seqs           = 32
     vllm_gpu_memory_utilization = 0.90
-    vllm_extra_args             = ""
-    health_check_grace_period   = 1200 # MoE loads faster than dense 405B
-    path_prefix                 = "/v1/models/nemotron"
-    health_check_path           = "/health"
+    # REAP checkpoint uses custom model code; this flag is required for vLLM to load it.
+    vllm_extra_args           = "--trust-remote-code"
+    health_check_grace_period = 1200 # MoE loads faster than dense 405B
+    path_prefix               = "/v1/models/nemotron"
+    health_check_path         = "/health"
   }
 
   gemma_30b = {

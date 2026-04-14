@@ -191,13 +191,17 @@ resource "aws_iam_role_policy" "inference_instance_policy" {
   })
 }
 
+# AWS Deep Learning Base GPU AMI (Ubuntu 22.04) — ships with CUDA, NVIDIA drivers,
+# and nvidia-container-toolkit pre-installed. This saves 10-20 minutes of boot time
+# vs a vanilla Ubuntu AMI and avoids fragile driver installation in user-data.
+# Owner 898082745236 is the canonical AWS GovCloud account for DL AMIs.
 data "aws_ami" "ubuntu" {
   most_recent = true
-  owners      = ["099720109477"]
+  owners      = ["898082745236"]
 
   filter {
     name   = "name"
-    values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
+    values = ["Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04) *"]
   }
 
   filter {
