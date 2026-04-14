@@ -194,10 +194,11 @@ resource "aws_iam_role_policy" "inference_instance_policy" {
 # AWS Deep Learning Base GPU AMI (Ubuntu 22.04) — ships with CUDA, NVIDIA drivers,
 # and nvidia-container-toolkit pre-installed. This saves 10-20 minutes of boot time
 # vs a vanilla Ubuntu AMI and avoids fragile driver installation in user-data.
-# Owner 898082745236 is the canonical AWS GovCloud account for DL AMIs.
+# The "amazon" owner alias resolves correctly in both commercial and aws-us-gov
+# partitions, so no hardcoded account ID is needed.
 data "aws_ami" "ubuntu" {
   most_recent = true
-  owners      = ["898082745236"]
+  owners      = ["amazon"]
 
   filter {
     name   = "name"
