@@ -22,7 +22,7 @@ on_demand_percentage     = 30
 spot_allocation_strategy = "capacity-optimized"
 spot_instance_pools      = 3
 
-root_volume_size_gb        = 50
+root_volume_size_gb        = 150 # DL Base GPU AMI root snapshot ~100 GB; Docker + vLLM image add ~30 GB
 model_cache_volume_size_gb = 200
 
 enable_cloudwatch_detailed = true

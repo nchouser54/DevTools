@@ -218,9 +218,9 @@ variable "spot_instance_pools" {
 }
 
 variable "root_volume_size_gb" {
-  description = "Root EBS size"
+  description = "Root EBS size. Must be >= 150 GB when using the Deep Learning Base GPU AMI (AMI root snapshot is ~75-100 GB; Docker + vLLM image add another ~30 GB)."
   type        = number
-  default     = 50
+  default     = 150
 }
 
 variable "model_cache_volume_size_gb" {

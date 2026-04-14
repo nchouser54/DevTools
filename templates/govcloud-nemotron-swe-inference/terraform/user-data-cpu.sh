@@ -209,13 +209,35 @@ WRAPPER_EOF
 
 chmod +x /opt/api-wrapper.py
 
-# Install Python dependencies
-apt-get install -y python3 python3-pip
-pip3 install flask requests
+# Install Python dependencies in a venv to avoid PEP 668 "externally-managed-environment"
+# errors that forbid system-wide pip installs on Ubuntu 22.04.3+.
+apt-get install -y python3 python3-pip python3-venv
+python3 -m venv /opt/api-venv
+/opt/api-venv/bin/pip install --quiet flask requests
 
-# Start API wrapper
-echo "[$(date)] ==> Starting API wrapper on port 8000"
-nohup python3 /opt/api-wrapper.py > /var/log/api-wrapper.log 2>&1 &
+# Install API wrapper as a systemd service so it restarts on reboot / Spot replacement.
+cat > /etc/systemd/system/api-wrapper.service << 'SERVICE_EOF'
+[Unit]
+Description=Ollama OpenAI-compatible API Wrapper
+After=network.target ollama.service
+Requires=ollama.service
+
+[Service]
+Type=simple
+ExecStart=/opt/api-venv/bin/python3 /opt/api-wrapper.py
+Restart=always
+RestartSec=5
+StandardOutput=append:/var/log/api-wrapper.log
+StandardError=append:/var/log/api-wrapper.log
+
+[Install]
+WantedBy=multi-user.target
+SERVICE_EOF
+
+echo "[$(date)] ==> Starting API wrapper service on port 8000"
+systemctl daemon-reload
+systemctl enable api-wrapper
+systemctl start api-wrapper
 
 # Wait for API to be ready
 echo "[$(date)] ==> Waiting for API wrapper to be ready..."
