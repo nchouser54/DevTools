@@ -159,9 +159,8 @@ def health():
 @app.route("/v1/completions", methods=["POST"])
 def completions():
     data = flask.request.json
-    
+
     try:
-        # Call Ollama API
         response = requests.post(
             f"{OLLAMA_URL}/api/generate",
             json={
@@ -172,13 +171,12 @@ def completions():
                 "temperature": data.get("temperature", 0.7),
             }
         )
-        
+
         if response.status_code != 200:
             return {"error": "Ollama error"}, 500
-        
+
         result = response.json()
-        
-        # Return in OpenAI format
+
         return {
             "id": "ollama-cpu",
             "object": "text_completion",
@@ -191,13 +189,58 @@ def completions():
                     "finish_reason": "stop"
                 }
             ],
-            "usage": {
-                "prompt_tokens": 0,
-                "completion_tokens": 0,
-                "total_tokens": 0
-            }
+            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
         }, 200
-        
+
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        return {"error": str(e)}, 500
+
+
+@app.route("/v1/chat/completions", methods=["POST"])
+def chat_completions():
+    """OpenAI chat completions endpoint — converts to Ollama /api/chat."""
+    data = flask.request.json
+    messages = data.get("messages", [])
+
+    try:
+        response = requests.post(
+            f"{OLLAMA_URL}/api/chat",
+            json={
+                "model": MODEL,
+                "messages": messages,
+                "stream": False,
+                "options": {
+                    "num_predict": data.get("max_tokens", 512),
+                    "temperature": data.get("temperature", 0.7),
+                },
+            }
+        )
+
+        if response.status_code != 200:
+            return {"error": "Ollama error"}, 500
+
+        result = response.json()
+        assistant_msg = result.get("message", {})
+
+        return {
+            "id": "ollama-cpu",
+            "object": "chat.completion",
+            "created": int(datetime.now().timestamp()),
+            "model": MODEL,
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": assistant_msg.get("role", "assistant"),
+                        "content": assistant_msg.get("content", ""),
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        }, 200
+
     except Exception as e:
         logging.error(f"Error: {e}")
         return {"error": str(e)}, 500
