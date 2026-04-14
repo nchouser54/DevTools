@@ -224,9 +224,9 @@ variable "root_volume_size_gb" {
 }
 
 variable "model_cache_volume_size_gb" {
-  description = "Model cache EBS size"
+  description = "Model cache EBS size (used when enable_efs_cache=false). 300 GB covers Nemotron REAP ~184 GB + Gemma ~60 GB with overhead."
   type        = number
-  default     = 150
+  default     = 300
 }
 
 variable "enable_cloudwatch_detailed" {

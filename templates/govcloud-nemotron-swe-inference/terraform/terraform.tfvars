@@ -23,7 +23,7 @@ spot_allocation_strategy = "capacity-optimized"
 spot_instance_pools      = 3
 
 root_volume_size_gb        = 150 # DL Base GPU AMI root snapshot ~100 GB; Docker + vLLM image add ~30 GB
-model_cache_volume_size_gb = 200
+model_cache_volume_size_gb = 300
 
 # SSM Parameter Store path for the HuggingFace token (SecureString).
 # Required for gated models. Leave empty for public checkpoints.
