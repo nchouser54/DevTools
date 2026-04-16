@@ -28,13 +28,30 @@ After the workspace starts, users can access:
 - optional enterprise proxy environment injection (`HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY`)
 - optional generated MCP configuration for filesystem + GitHub + Jira + Confluence
 
+## Coder Tasks support
+
+This template includes `coder_ai_task` and appears in the Coder **Tasks** tab.
+
+When a task is submitted:
+1. Coder spins up a new workspace from this template.
+2. The startup script runs as normal (git clone, MCP config, Claude Code install).
+3. At the end of startup, if `data.coder_task.me.prompt` is non-empty, Claude Code runs the prompt non-interactively via `claude --print "<prompt>"`.
+4. The Task UI shows the Claude Code app in the sidebar so you can watch or interact with the session.
+5. When the workspace reaches its idle timeout it pauses; resuming restarts the workspace so you can continue the conversation.
+
+When used as a regular workspace (not a Task), the prompt block is skipped — the workspace behaves exactly as before.
+
+**Requirements:** Coder server v2.13+. Bedrock model access or an Anthropic API key must be configured.
+
 ## Non-premium behavior
 
-This template intentionally avoids premium-only features:
+This template uses `coder_ai_task` (Tasks tab support) but does **not** use:
 
-- no `coder_ai_task` resources
-- no AI Bridge dependency
-- no premium task reporting integration
+- AI Bridge / AI Gateway
+- AgentAPI for rich streaming status reporting
+- Premium task reporting integration
+
+Claude still runs inside the workspace and the Tasks UI works. AgentAPI status streaming (live typing indicators) requires the premium agent module — this template uses the simpler `claude --print` path.
 
 ## Authentication options
 

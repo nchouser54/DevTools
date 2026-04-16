@@ -4,7 +4,7 @@ terraform {
   required_providers {
     coder = {
       source  = "coder/coder"
-      version = ">= 2.12.0"
+      version = ">= 2.13.0"
     }
     docker = {
       source  = "kreuzwerker/docker"
@@ -257,6 +257,16 @@ data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
 data "coder_provisioner" "me" {}
+
+# coder_task is populated when this workspace is launched as a Coder Task.
+# When accessed outside a Task context the prompt field is an empty string.
+data "coder_task" "me" {}
+
+# Declaring this resource is what makes the template appear in the Tasks tab.
+# app_id points to the Claude Code workspace app so the Task UI embeds that app.
+resource "coder_ai_task" "task" {
+
+}
 
 locals {
   workspace_owner_effective  = coalesce(data.coder_workspace_owner.me.full_name, data.coder_workspace_owner.me.name)
@@ -554,6 +564,16 @@ EOF
 
       claude mcp list || true
     fi
+
+    # ── Coder Tasks: run the task prompt non-interactively when one is supplied ──
+    # data.coder_task.me.prompt is non-empty only when this workspace was launched
+    # as a Coder Task. In a normal workspace session the block is skipped entirely.
+    TASK_PROMPT="${data.coder_task.me.prompt}"
+    if [[ -n "$TASK_PROMPT" ]]; then
+      echo "[task] Running Task prompt via Claude Code..."
+      cd "${var.workdir}"
+      claude --print "$TASK_PROMPT"${local.claude_permission_arg} || true
+    fi
   EOT
 }
 
@@ -739,6 +759,7 @@ resource "coder_metadata" "workspace_info" {
 }
 
 output "template_summary" {
+  sensitive = true
   value = {
     owner            = local.workspace_owner_effective
     owner_email      = local.workspace_owner_email
