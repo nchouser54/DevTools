@@ -263,9 +263,35 @@ data "coder_provisioner" "me" {}
 data "coder_task" "me" {}
 
 # Declaring this resource is what makes the template appear in the Tasks tab.
-# app_id points to the Claude Code workspace app so the Task UI embeds that app.
+# app_id points to the Claude Code registry module's AgentAPI app so the Task
+# UI embeds the live streaming chat interface.
 resource "coder_ai_task" "task" {
+  count  = data.coder_workspace.me.start_count
+  app_id = module.claude_code.task_app_id
+}
 
+# Registry module: installs Claude Code + AgentAPI, handles task execution,
+# live streaming status reporting, and session persistence across Spot restarts.
+module "claude_code" {
+  source   = "registry.coder.com/coder/claude-code/coder"
+  version  = "4.9.2"
+  agent_id = coder_agent.main.id
+  workdir  = var.workdir
+
+  # When launched as a Task the prompt is injected here and Claude runs it
+  # non-interactively via AgentAPI. Empty string in a normal workspace session.
+  ai_prompt = data.coder_task.me.prompt
+
+  # Auth — only one of these should be set (validated by check block above).
+  claude_api_key          = var.claude_api_key
+  claude_code_oauth_token = var.claude_code_oauth_token
+
+  claude_code_version = var.claude_code_version
+  permission_mode     = var.permission_mode
+
+  # MCP servers built from operator variables in locals.mcp_servers_json.
+  mcp                    = local.mcp_servers_json
+  mcp_config_remote_path = local.remote_mcp_config_urls
 }
 
 locals {
@@ -282,8 +308,7 @@ locals {
   ])
 
   post_spinup_apps = compact([
-    "Claude Code CLI",
-    "Claude Auth Setup",
+    "Claude Code",
     "VS Code",
     "Web Terminal",
     var.enable_code_server ? "code-server" : ""
@@ -294,6 +319,53 @@ locals {
     var.enable_mcp_jira ? "jira" : "",
     var.enable_mcp_confluence ? "confluence" : "",
   ])
+
+  # MCP server config built in Terraform so the registry module receives a
+  # static JSON string — no bash jq required at boot.
+  mcp_servers_json = jsonencode({
+    mcpServers = merge(
+      var.enable_mcp_filesystem ? {
+        filesystem = {
+          command = "npx"
+          args    = ["-y", "@modelcontextprotocol/server-filesystem", var.mcp_allowed_root]
+        }
+      } : {},
+      var.enable_mcp_github ? {
+        github = {
+          command = "npx"
+          args    = ["-y", "@modelcontextprotocol/server-github"]
+          env = {
+            GITHUB_PERSONAL_ACCESS_TOKEN = var.mcp_github_token
+            GITHUB_SERVER_URL            = var.mcp_github_server_url
+            GITHUB_REPOSITORY            = var.mcp_github_repository
+            GITHUB_BRANCH                = var.mcp_github_branch
+          }
+        }
+      } : {},
+      var.enable_mcp_jira ? {
+        jira = {
+          command = "npx"
+          args    = ["-y", "mcp-remote", var.mcp_jira_server_url]
+          env = {
+            AUTHORIZATION    = "Bearer ${var.mcp_jira_token}"
+            JIRA_PROJECT_KEY = var.mcp_jira_project_key
+            JIRA_USER_EMAIL  = local.jira_user_email_effective
+          }
+        }
+      } : {},
+      var.enable_mcp_confluence ? {
+        confluence = {
+          command = "npx"
+          args    = ["-y", "mcp-remote", var.mcp_confluence_server_url]
+          env = {
+            AUTHORIZATION         = "Bearer ${var.mcp_confluence_token}"
+            CONFLUENCE_SPACE_KEY  = var.mcp_confluence_space_key
+            CONFLUENCE_USER_EMAIL = local.confluence_user_email_effective
+          }
+        }
+      } : {}
+    )
+  })
 }
 
 check "claude_auth_inputs" {
@@ -431,14 +503,7 @@ resource "coder_agent" "main" {
     fi
 
     if ! command -v claude >/dev/null 2>&1; then
-      if [[ "${var.install_via_npm}" == "true" ]]; then
-        if ! command -v npm >/dev/null 2>&1 && command -v sudo >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
-          sudo apt-get install -y --no-install-recommends npm >/dev/null
-        fi
-        npm install -g "@anthropic-ai/claude-code@${var.claude_code_version}"
-      else
-        curl -fsSL claude.ai/install.sh | bash -s -- "${var.claude_code_version}"
-      fi
+      echo "[startup] Claude Code will be installed by the coder/claude-code module."
     fi
 
     export PATH="$HOME/.local/bin:$PATH"
@@ -564,16 +629,6 @@ EOF
 
       claude mcp list || true
     fi
-
-    # ── Coder Tasks: run the task prompt non-interactively when one is supplied ──
-    # data.coder_task.me.prompt is non-empty only when this workspace was launched
-    # as a Coder Task. In a normal workspace session the block is skipped entirely.
-    TASK_PROMPT="${data.coder_task.me.prompt}"
-    if [[ -n "$TASK_PROMPT" ]]; then
-      echo "[task] Running Task prompt via Claude Code..."
-      cd "${var.workdir}"
-      claude --print "$TASK_PROMPT"${local.claude_permission_arg} || true
-    fi
   EOT
 }
 
@@ -645,28 +700,6 @@ resource "coder_env" "mcp_confluence_token" {
   agent_id = coder_agent.main.id
   name     = "MCP_CONFLUENCE_TOKEN"
   value    = var.mcp_confluence_token
-}
-
-resource "coder_app" "claude_code_cli" {
-  agent_id     = coder_agent.main.id
-  slug         = "claude-code"
-  display_name = "Claude Code"
-  icon         = "${data.coder_workspace.me.access_url}/icon/claude.svg"
-  command      = "bash -lc 'cd \"${var.workdir}\" && claude${local.claude_permission_arg}'"
-  share        = "owner"
-  order        = 1
-  tooltip      = "Launch Claude Code in the workspace terminal."
-}
-
-resource "coder_app" "claude_auth_setup" {
-  agent_id     = coder_agent.main.id
-  slug         = "claude-auth"
-  display_name = "Claude Auth Setup"
-  icon         = "${data.coder_workspace.me.access_url}/icon/lock.svg"
-  command      = "bash -lc 'cd \"${var.workdir}\" && claude setup-token'"
-  share        = "owner"
-  order        = 2
-  tooltip      = "Run Claude interactive auth/token setup inside the workspace."
 }
 
 resource "docker_container" "workspace" {
