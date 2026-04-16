@@ -6,17 +6,53 @@ terraform {
       source  = "coder/coder"
       version = ">= 2.13.0"
     }
-    docker = {
-      source  = "kreuzwerker/docker"
-      version = ">= 3.0.2"
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = ">= 2.23"
     }
   }
 }
 
-variable "socket" {
+variable "namespace" {
   type        = string
-  description = "Docker daemon socket used by the workspace template runtime. Example: unix:///var/run/docker.sock"
-  default     = "unix:///var/run/docker.sock"
+  description = "Kubernetes namespace to deploy the workspace pod into."
+  default     = "coder"
+}
+
+variable "storage_size" {
+  type        = string
+  description = "Size of the persistent home directory volume."
+  default     = "10Gi"
+}
+
+variable "cpu_request" {
+  type        = string
+  description = "CPU request for the workspace pod."
+  default     = "500m"
+}
+
+variable "memory_request" {
+  type        = string
+  description = "Memory request for the workspace pod."
+  default     = "1Gi"
+}
+
+variable "cpu_limit" {
+  type        = string
+  description = "CPU limit for the workspace pod."
+  default     = "2"
+}
+
+variable "memory_limit" {
+  type        = string
+  description = "Memory limit for the workspace pod."
+  default     = "4Gi"
+}
+
+variable "service_account_name" {
+  type        = string
+  description = "Kubernetes service account name to attach to the workspace pod (used for IRSA/Bedrock IAM access)."
+  default     = ""
 }
 
 variable "container_image" {
@@ -246,11 +282,9 @@ variable "mcp_remote_config_urls_csv" {
   default     = ""
 }
 
-provider "docker" {
-  host = var.socket
-}
-
 provider "coder" {}
+
+provider "kubernetes" {}
 
 data "coder_workspace" "me" {}
 
@@ -702,48 +736,118 @@ resource "coder_env" "mcp_confluence_token" {
   value    = var.mcp_confluence_token
 }
 
-resource "docker_container" "workspace" {
-  count = data.coder_workspace.me.start_count
-
-  image    = var.container_image
-  name     = "coder-${data.coder_workspace_owner.me.name}-${lower(data.coder_workspace.me.name)}"
-  hostname = lower(data.coder_workspace.me.name)
-  dns      = ["1.1.1.1"]
-
-  command = [
-    "sh",
-    "-c",
-    <<-EOT
-      trap '[ $? -ne 0 ] && echo === Agent script exited with non-zero code. Sleeping infinitely to preserve logs... && sleep infinity' EXIT
-      ${replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")}
-    EOT
-  ]
-
-  env = [
-    "CODER_AGENT_TOKEN=${coder_agent.main.token}"
-  ]
-
-  volumes {
-    container_path = "/home/coder"
-    volume_name    = docker_volume.home.name
-    read_only      = false
+resource "kubernetes_persistent_volume_claim_v1" "home" {
+  metadata {
+    name      = "coder-${data.coder_workspace_owner.me.name}-${data.coder_workspace.me.name}-home"
+    namespace = var.namespace
+    labels = {
+      "app.kubernetes.io/name"     = "coder-workspace"
+      "app.kubernetes.io/instance" = "${data.coder_workspace_owner.me.name}-${data.coder_workspace.me.name}"
+    }
   }
-
-  host {
-    host = "host.docker.internal"
-    ip   = "host-gateway"
+  wait_until_bound = false
+  spec {
+    access_modes = ["ReadWriteOnce"]
+    resources {
+      requests = {
+        storage = var.storage_size
+      }
+    }
   }
 }
 
-resource "docker_volume" "home" {
-  name = "coder-${data.coder_workspace_owner.me.name}-${data.coder_workspace.me.name}"
+resource "kubernetes_deployment_v1" "workspace" {
+  count = data.coder_workspace.me.start_count
+
+  metadata {
+    name      = "coder-${data.coder_workspace_owner.me.name}-${lower(data.coder_workspace.me.name)}"
+    namespace = var.namespace
+    labels = {
+      "app.kubernetes.io/name"     = "coder-workspace"
+      "app.kubernetes.io/instance" = "${data.coder_workspace_owner.me.name}-${data.coder_workspace.me.name}"
+    }
+  }
+
+  spec {
+    replicas = 1
+
+    selector {
+      match_labels = {
+        "app.kubernetes.io/instance" = "${data.coder_workspace_owner.me.name}-${data.coder_workspace.me.name}"
+      }
+    }
+
+    strategy {
+      type = "Recreate"
+    }
+
+    template {
+      metadata {
+        labels = {
+          "app.kubernetes.io/name"     = "coder-workspace"
+          "app.kubernetes.io/instance" = "${data.coder_workspace_owner.me.name}-${data.coder_workspace.me.name}"
+        }
+      }
+
+      spec {
+        security_context {
+          run_as_user = 1000
+          fs_group    = 1000
+        }
+
+        service_account_name = length(trimspace(var.service_account_name)) > 0 ? var.service_account_name : null
+
+        container {
+          name    = "workspace"
+          image   = var.container_image
+          command = ["sh", "-c", coder_agent.main.init_script]
+
+          env {
+            name  = "CODER_AGENT_TOKEN"
+            value = coder_agent.main.token
+          }
+
+          resources {
+            requests = {
+              cpu    = var.cpu_request
+              memory = var.memory_request
+            }
+            limits = {
+              cpu    = var.cpu_limit
+              memory = var.memory_limit
+            }
+          }
+
+          volume_mount {
+            mount_path = "/home/coder"
+            name       = "home-directory"
+            read_only  = false
+          }
+        }
+
+        volume {
+          name = "home-directory"
+          persistent_volume_claim {
+            claim_name = kubernetes_persistent_volume_claim_v1.home.metadata[0].name
+          }
+        }
+      }
+    }
+  }
+
+  depends_on = [kubernetes_persistent_volume_claim_v1.home]
 }
 
 resource "coder_metadata" "workspace_info" {
   count       = data.coder_workspace.me.start_count
-  resource_id = docker_container.workspace[0].id
+  resource_id = kubernetes_deployment_v1.workspace[0].id
   icon        = "${data.coder_workspace.me.access_url}/icon/claude.svg"
   hide        = false
+
+  item {
+    key   = "namespace"
+    value = var.namespace
+  }
 
   item {
     key   = "workspace_owner"
@@ -796,6 +900,7 @@ output "template_summary" {
   value = {
     owner            = local.workspace_owner_effective
     owner_email      = local.workspace_owner_email
+    namespace        = var.namespace
     container_image  = var.container_image
     workdir          = var.workdir
     git_repository   = var.git_repo_url
